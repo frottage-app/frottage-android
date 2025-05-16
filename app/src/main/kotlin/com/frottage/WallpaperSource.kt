@@ -30,7 +30,7 @@ fun isDarkTheme(context: Context): Boolean {
     }
 }
 
-const val baseUrl = "https://fdietze.github.io/frottage/wallpapers"
+const val baseUrl = "https://frottage.app/static"
 
 fun frottageUrl(context: Context): String {
     return if (isTablet(context)) {
