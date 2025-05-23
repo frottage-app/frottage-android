@@ -33,14 +33,20 @@ fun isDarkTheme(context: Context): Boolean {
 const val baseUrl = "https://frottage.app/static"
 
 fun frottageUrl(context: Context): String {
+    val targetKey = getFrottageTargetKey(context) // e.g. "desktop", "desktop-light", "mobile"
+    val filename = "wallpaper-${targetKey}-latest.jpg"
+    return "${baseUrl}/${filename}"
+}
+
+fun getFrottageTargetKey(context: Context): String {
     return if (isTablet(context)) {
         if (isDarkTheme(context)) {
-            "${baseUrl}/wallpaper-desktop-latest.jpg"
+            "desktop"
         } else {
-            "${baseUrl}/wallpaper-desktop-light-latest.jpg"
+            "desktop-light"
         }
     } else {
-        "${baseUrl}/wallpaper-mobile-latest.jpg"
+        "mobile"
     }
 }
 

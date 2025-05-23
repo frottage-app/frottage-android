@@ -1,0 +1,1 @@
+- after every change, compile the project using the command `./gradlew assembleDebug`

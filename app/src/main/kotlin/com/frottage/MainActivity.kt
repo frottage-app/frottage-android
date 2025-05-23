@@ -1,6 +1,11 @@
 package com.frottage
 
+import android.content.Context
 import android.content.Intent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -20,6 +25,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.Composable
@@ -41,12 +48,9 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import com.frottage.theme.AppTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -81,7 +85,31 @@ class MainActivity :
                                     .safeDrawingPadding(),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Preview(navController, triggerUpdate, Modifier.weight(1f))
+                               val contextForRating = LocalContext.current
+                               val scope = rememberCoroutineScope()
+                               var currentImageUrl by remember { mutableStateOf<String?>(null) }
+                               Preview(
+                                    navController = navController,
+                                    triggerUpdate = triggerUpdate,
+                                    modifier = Modifier.weight(1f),
+                                    onImageUrlChanged = { url -> currentImageUrl = url }
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                var currentRating by remember { mutableIntStateOf(0) }
+                                StarRatingBar(
+                                    rating = currentRating,
+                                    onRatingChanged = { newRating ->
+                                        currentRating = newRating
+                                        val targetKeyVal = getFrottageTargetKey(contextForRating)
+                                        scope.launch {
+                                            submitRating(contextForRating, newRating, targetKeyVal, currentImageUrl)
+                                        }
+                                    }
+                                 )
+
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Column {
                                     lockScreenEnableCheckbox()
@@ -190,13 +218,20 @@ class MainActivity :
         navController: NavHostController,
         triggerUpdate: Int,
         modifier: Modifier,
+        onImageUrlChanged: (String?) -> Unit,
     ) {
         key(triggerUpdate) {
             val context = LocalContext.current
             val wallpaperSource =
                 SettingsManager.currentWallpaperSource
+
+            LaunchedEffect(wallpaperSource, context) { // Re-calculate if source or context changes
+                val url = wallpaperSource.lockScreen?.url(context)
+                onImageUrlChanged(url)
+            }
+
             wallpaperSource.lockScreen?.let {
-                val lockScreenUrl = it.url(context)
+                val lockScreenUrl = it.url(context) // This will be the same as currentImageUrl if lockScreen is not null
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
                 val imageRequest =
                     wallpaperSource.schedule.imageRequest(
@@ -476,5 +511,25 @@ fun WorkInfoItem(workInfo: WorkInfo) {
         Text(text = "ID: ${workInfo.id}")
         Text(text = "State: ${workInfo.state}")
         Text(text = "Tags: ${workInfo.tags.joinToString()}")
+    }
+}
+
+@Composable
+fun StarRatingBar(
+    modifier: Modifier = Modifier,
+    maxStars: Int = 5,
+    rating: Int,
+    onRatingChanged: (Int) -> Unit
+) {
+    Row(modifier = modifier) {
+        for (starIndex in 1..maxStars) {
+            IconButton(onClick = { onRatingChanged(starIndex) }) {
+                Icon(
+                    imageVector = if (starIndex <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = if (starIndex <= rating) "Filled Star $starIndex" else "Empty Star $starIndex",
+                    tint = if (starIndex <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        }
     }
 }
