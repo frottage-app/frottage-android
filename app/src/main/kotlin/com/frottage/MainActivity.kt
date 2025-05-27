@@ -1,8 +1,6 @@
 package com.frottage
 
-import android.content.Context
 import android.content.Intent
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,7 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.asFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -82,20 +82,24 @@ class MainActivity :
                                 modifier =
                                 Modifier
                                     .fillMaxSize()
-                                    .safeDrawingPadding(),
+                                    .safeDrawingPadding()
+                                    .padding(
+                                        top = 20.dp,
+                                        bottom = 20.dp,
+                                    ),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                               val contextForRating = LocalContext.current
-                               val scope = rememberCoroutineScope()
-                               var currentImageUrl by remember { mutableStateOf<String?>(null) }
-                               Preview(
+                                val contextForRating = LocalContext.current
+                                val scope = rememberCoroutineScope()
+                                var currentImageUrl by remember { mutableStateOf<String?>(null) }
+                                Preview(
                                     navController = navController,
                                     triggerUpdate = triggerUpdate,
                                     modifier = Modifier.weight(1f),
                                     onImageUrlChanged = { url -> currentImageUrl = url }
                                 )
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
 
                                 var currentRating by remember { mutableIntStateOf(0) }
                                 StarRatingBar(
@@ -104,34 +108,101 @@ class MainActivity :
                                         currentRating = newRating
                                         val targetKeyVal = getFrottageTargetKey(contextForRating)
                                         scope.launch {
-                                            submitRating(contextForRating, newRating, targetKeyVal, currentImageUrl)
+                                            submitRating(
+                                                contextForRating,
+                                                newRating,
+                                                targetKeyVal,
+                                                currentImageUrl
+                                            )
                                         }
                                     }
-                                 )
+                                )
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                                Column {
-                                    lockScreenEnableCheckbox()
-                                    homeScreenEnableCheckbox()
-                                    Box(
-                                        modifier =
-                                        Modifier
-                                            .padding(start = 32.dp),
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.width(300.dp),
+                                ) {
+
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(
+                                                start = 10.dp,
+                                                top = 18.dp,
+                                                end = 20.dp,
+                                                bottom = 8.dp,
+                                            )
+
                                     ) {
+                                        Text(
+                                            text = "Wallpaper Settings",
+                                            style = androidx.compose.ui.text.TextStyle(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 20.sp,
+                                            ),
+                                            modifier = Modifier.padding(
+                                                start = 12.dp,
+                                                bottom = 10.dp,
+                                            )
+                                        )
+                                        lockScreenEnableCheckbox()
+                                        homeScreenEnableCheckbox()
                                         homeScreenBlurCheckbox()
+                                    }
+
+                                }
+
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.width(300.dp),
+                                ) {
+
+                                    Column(
+                                        modifier = Modifier.padding(
+                                            start = 10.dp,
+                                            top = 18.dp,
+                                            end = 20.dp,
+                                            bottom = 8.dp,
+                                        )
+                                    )
+                                    {
+                                        Text(
+                                            text = "Schedule",
+                                            style = androidx.compose.ui.text.TextStyle(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 20.sp,
+                                            ),
+                                            modifier = Modifier.padding(
+                                                start = 12.dp,
+                                                bottom = 10.dp,
+                                            )
+                                        )
+                                        NextUpdateTime(
+                                            key = triggerUpdate,
+                                            navController = navController,
+                                            modifier = Modifier.padding(
+                                                start = 12.dp
+                                            ),
+                                        )
+
+                                        ScheduleSwitch(
+                                            triggerUpdate,
+                                            modifier = Modifier.padding(
+                                                start = 12.dp
+                                            ),
+                                        )
                                     }
                                 }
 
+                                Spacer(modifier = Modifier.height(24.dp))
+
                                 SetWallpaperButton()
 
-                                Spacer(modifier = Modifier.height(32.dp))
 
-                                NextUpdateTime(key = triggerUpdate, navController = navController)
-
-                                scheduleSwitch(triggerUpdate)
-
-                                Spacer(modifier = Modifier.height(16.dp))
                             }
 
                             // SettingsButton(navController)
@@ -165,6 +236,7 @@ class MainActivity :
         var isLoading by remember { mutableStateOf(false) }
 
         Button(
+            modifier = Modifier.width(300.dp),
             onClick = {
                 scope.launch {
                     isLoading = true
@@ -191,9 +263,21 @@ class MainActivity :
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Setting Wallpaper...")
+                Text(
+                    "Setting Wallpaper...",
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                    )
+                )
             } else {
-                Text("Set Wallpaper")
+                Text(
+                    "Set Wallpaper",
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                    )
+                )
             }
         }
     }
@@ -231,7 +315,8 @@ class MainActivity :
             }
 
             wallpaperSource.lockScreen?.let {
-                val lockScreenUrl = it.url(context) // This will be the same as currentImageUrl if lockScreen is not null
+                val lockScreenUrl =
+                    it.url(context) // This will be the same as currentImageUrl if lockScreen is not null
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
                 val imageRequest =
                     wallpaperSource.schedule.imageRequest(
@@ -255,7 +340,7 @@ class MainActivity :
     }
 
     @Composable
-    private fun scheduleSwitch(triggerUpdate: Int) {
+    private fun ScheduleSwitch(triggerUpdate: Int, modifier: Modifier) {
         val context = LocalContext.current
         var isScheduleEnabled by remember {
             mutableStateOf(
@@ -265,7 +350,9 @@ class MainActivity :
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = modifier
+                .fillMaxWidth(),
         ) {
             Text("Enable schedule")
             Switch(
@@ -311,7 +398,7 @@ class MainActivity :
                     )
                 },
             )
-            Text("Blur home screen")
+            Text("Blur Home Screen")
         }
     }
 
@@ -338,7 +425,7 @@ class MainActivity :
                     )
                 },
             )
-            Text("Frottage my home screen")
+            Text("Apply to Home Screen")
         }
     }
 
@@ -365,7 +452,7 @@ class MainActivity :
                     )
                 },
             )
-            Text("Frottage my lock screen")
+            Text("Apply to Lock Screen")
         }
     }
 
@@ -424,7 +511,7 @@ class MainActivity :
 }
 
 @Composable
-fun NextUpdateTime(key: Any? = null, navController: NavHostController) {
+fun NextUpdateTime(key: Any? = null, navController: NavHostController, modifier: Modifier) {
     val now = ZonedDateTime.now(ZoneId.of("UTC"))
     val nextUpdateTime = SettingsManager.currentWallpaperSource.schedule.nextUpdateTime(now)
     val localNextUpdateTime = nextUpdateTime.withZoneSameInstant(ZoneId.systemDefault())
@@ -435,7 +522,7 @@ fun NextUpdateTime(key: Any? = null, navController: NavHostController) {
 
     Text(
         text = "Next image: $formattedNextUpdateTime",
-        modifier = Modifier.clickable {
+        modifier = modifier.clickable {
             tapCount++
             if (tapCount >= 7) {
                 navController.navigate("logscreen")
@@ -527,7 +614,9 @@ fun StarRatingBar(
                 Icon(
                     imageVector = if (starIndex <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (starIndex <= rating) "Filled Star $starIndex" else "Empty Star $starIndex",
-                    tint = if (starIndex <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    tint = if (starIndex <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.5f
+                    )
                 )
             }
         }
