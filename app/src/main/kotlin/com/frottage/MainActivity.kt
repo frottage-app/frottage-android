@@ -1,9 +1,6 @@
 package com.frottage
 
 import android.content.Intent
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -15,19 +12,44 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,9 +70,12 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import com.frottage.theme.AppTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -80,39 +105,104 @@ class MainActivity :
                         composable("wallpaper") {
                             Column(
                                 modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .safeDrawingPadding()
-                                    .padding(
-                                        top = 20.dp,
-                                        bottom = 20.dp,
-                                    ),
+                                    Modifier
+                                        .fillMaxSize()
+                                        .safeDrawingPadding()
+                                        .padding(
+                                            top = 20.dp,
+                                            bottom = 20.dp,
+                                        ),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 val contextForRating = LocalContext.current
                                 val scope = rememberCoroutineScope()
                                 var currentImageUrl by remember { mutableStateOf<String?>(null) }
+                                var currentImageUniqueId by remember { mutableStateOf<String?>(null) }
+
                                 Preview(
                                     navController = navController,
                                     triggerUpdate = triggerUpdate,
                                     modifier = Modifier.weight(1f),
-                                    onImageUrlChanged = { url -> currentImageUrl = url }
+                                    onImageUrlChanged = { url -> currentImageUrl = url },
+                                    onImageUniqueIdChanged = { id -> currentImageUniqueId = id }
                                 )
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 var currentRating by remember { mutableIntStateOf(0) }
+
+                                LaunchedEffect(currentImageUniqueId, contextForRating) {
+                                    currentImageUniqueId?.let { imageId ->
+                                        if (imageId.isNotBlank()) {
+                                            currentRating = RatingPersistence.loadRating(
+                                                contextForRating,
+                                                imageId
+                                            )
+                                            Log.d(
+                                                "MainActivity",
+                                                "Attempted to load rating for ID '$imageId', got $currentRating. Groovy!"
+                                            )
+                                        } else {
+                                            currentRating = 0 // Reset if ID is blank
+                                            Log.d(
+                                                "MainActivity",
+                                                "Image ID is blank. Setting rating to 0. Not very frottage."
+                                            )
+                                        }
+                                    } ?: run {
+                                        currentRating = 0 // Reset if ID is null
+                                        Log.d(
+                                            "MainActivity",
+                                            "Image ID is null. Setting rating to 0. A blank canvas for frottage!"
+                                        )
+                                    }
+                                }
+
                                 StarRatingBar(
                                     rating = currentRating,
                                     onRatingChanged = { newRating ->
-                                        currentRating = newRating
+                                        currentRating = newRating // Update UI immediately
                                         val targetKeyVal = getFrottageTargetKey(contextForRating)
-                                        scope.launch {
-                                            submitRating(
-                                                contextForRating,
-                                                newRating,
-                                                targetKeyVal
+                                        currentImageUniqueId?.let { imageId ->
+                                            if (imageId.isNotBlank()) {
+                                                scope.launch {
+                                                    RatingPersistence.saveRating(
+                                                        contextForRating,
+                                                        imageId,
+                                                        newRating
+                                                    )
+                                                    // Still submit to the backend as before
+                                                    submitRating(
+                                                        contextForRating,
+                                                        newRating,
+                                                        targetKeyVal
+                                                    )
+                                                }
+                                            } else {
+                                                Log.w(
+                                                    "MainActivity",
+                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId is blank! Will still try to submit to backend for '$targetKeyVal'."
+                                                )
+                                                scope.launch { // Attempt backend submission even if local save key is bad
+                                                    submitRating(
+                                                        contextForRating,
+                                                        newRating,
+                                                        targetKeyVal
+                                                    )
+                                                }
+                                            }
+                                        } ?: run {
+                                            Log.w(
+                                                "MainActivity",
+                                                "Frottage Alert: Cannot save rating locally, imageUniqueId is null! Will still try to submit to backend for '$targetKeyVal'."
                                             )
+                                            scope.launch { // Attempt backend submission even if local save key is bad
+                                                submitRating(
+                                                    contextForRating,
+                                                    newRating,
+                                                    targetKeyVal
+                                                )
+                                            }
                                         }
                                     }
                                 )
@@ -279,6 +369,7 @@ class MainActivity :
         triggerUpdate: Int,
         modifier: Modifier,
         onImageUrlChanged: (String?) -> Unit,
+        onImageUniqueIdChanged: (String?) -> Unit,
     ) {
         key(triggerUpdate) {
             val context = LocalContext.current
@@ -287,7 +378,19 @@ class MainActivity :
 
             LaunchedEffect(wallpaperSource, context) { // Re-calculate if source or context changes
                 val url = wallpaperSource.lockScreen?.url(context)
-                onImageUrlChanged(url)
+                onImageUrlChanged(url) // Keep for any existing dependencies
+
+                url?.let { lockScreenUrlValue ->
+                    val now = ZonedDateTime.now(ZoneId.of("UTC"))
+                    val imageRequest = wallpaperSource.schedule.imageRequest(
+                        lockScreenUrlValue,
+                        now,
+                        context
+                    )
+                    onImageUniqueIdChanged(imageRequest.diskCacheKey)
+                } ?: run {
+                    onImageUniqueIdChanged(null) // No URL, so no unique ID
+                }
             }
 
             wallpaperSource.lockScreen?.let {
@@ -300,15 +403,16 @@ class MainActivity :
                         now,
                         context,
                     )
+                // The LaunchedEffect above handles calling onImageUniqueIdChanged.
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = "Current Lock Screen Wallpaper",
                     modifier =
-                    modifier
-                        .clip(shape = RoundedCornerShape(16.dp))
-                        .clickable(onClick = {
-                            navController.navigate("fullscreen")
-                        }),
+                        modifier
+                            .clip(shape = RoundedCornerShape(16.dp))
+                            .clickable(onClick = {
+                                navController.navigate("fullscreen")
+                            }),
                     contentScale = ContentScale.Fit,
                 )
             }
@@ -525,21 +629,21 @@ fun FullscreenImageScreen(onClick: () -> Unit) {
             )
         Box(
             modifier =
-            Modifier
-                .fillMaxSize()
-                .clickable {
-                    if (!alreadyClicked) {
-                        alreadyClicked = true
-                        onClick()
-                    }
-                },
+                Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        if (!alreadyClicked) {
+                            alreadyClicked = true
+                            onClick()
+                        }
+                    },
         ) {
             AsyncImage(
                 model = imageRequest,
                 contentDescription = "Current Lock Screen Wallpaper",
                 modifier =
-                Modifier
-                    .fillMaxSize(),
+                    Modifier
+                        .fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
         }

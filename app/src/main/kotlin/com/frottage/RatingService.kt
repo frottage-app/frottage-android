@@ -112,8 +112,6 @@ internal suspend fun submitRating(
                 "StarRatingSvc",
                 "Rating submitted successfully to server for target: $targetKey, stars: $rating. Awesome frottage!"
             )
-            Toast.makeText(context, "Rated $rating stars for $targetKey!", Toast.LENGTH_SHORT)
-                .show()
         } else {
             Log.e(
                 "StarRatingSvc",
