@@ -203,14 +203,6 @@ class MainActivity :
 
 
                             }
-
-                            // SettingsButton(navController)
-                        }
-                        composable("settings") {
-                            SettingsScreen(onSettingsSaved = {
-                                navController.popBackStack()
-                                handleSettingsSaved()
-                            })
                         }
                         composable("fullscreen") {
                             FullscreenImageScreen(onClick = {
@@ -278,21 +270,6 @@ class MainActivity :
                     )
                 )
             }
-        }
-    }
-
-    @Composable
-    private fun SettingsButton(navController: NavHostController) {
-        FloatingActionButton(
-            onClick = { navController.navigate("settings") },
-            modifier =
-            Modifier
-                .padding(16.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-            )
         }
     }
 
