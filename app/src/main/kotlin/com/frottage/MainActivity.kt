@@ -111,8 +111,7 @@ class MainActivity :
                                             submitRating(
                                                 contextForRating,
                                                 newRating,
-                                                targetKeyVal,
-                                                currentImageUrl
+                                                targetKeyVal
                                             )
                                         }
                                     }
