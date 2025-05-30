@@ -80,6 +80,10 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.frottage.ui.composables.StarRatingBar
+import com.frottage.ui.composables.NextUpdateTime
+import com.frottage.ui.screens.FullscreenImageScreen
+import com.frottage.ui.composables.WorkInfoListScreen
 
 class MainActivity :
     ComponentActivity(),
@@ -590,115 +594,3 @@ class MainActivity :
     }
 }
 
-@Composable
-fun NextUpdateTime(key: Any? = null, navController: NavHostController, modifier: Modifier) {
-    val now = ZonedDateTime.now(ZoneId.of("UTC"))
-    val nextUpdateTime = SettingsManager.currentWallpaperSource.schedule.nextUpdateTime(now)
-    val localNextUpdateTime = nextUpdateTime.withZoneSameInstant(ZoneId.systemDefault())
-    val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-    val formattedNextUpdateTime = localNextUpdateTime.format(timeFormat)
-
-    var tapCount by remember { mutableStateOf(0) }
-
-    Text(
-        text = "Next image: $formattedNextUpdateTime",
-        modifier = modifier.clickable {
-            tapCount++
-            if (tapCount >= 7) {
-                navController.navigate("logscreen")
-                tapCount = 0
-            }
-        }
-    )
-}
-
-@Composable
-fun FullscreenImageScreen(onClick: () -> Unit) {
-    val context = LocalContext.current
-    var alreadyClicked by remember { mutableStateOf(false) }
-    val wallpaperSource =
-        SettingsManager.currentWallpaperSource
-    wallpaperSource.lockScreen?.let {
-        val lockScreenUrl = it.url(context)
-        val now = ZonedDateTime.now(ZoneId.of("UTC"))
-        val imageRequest =
-            wallpaperSource.schedule.imageRequest(
-                lockScreenUrl,
-                now,
-                context,
-            )
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .clickable {
-                        if (!alreadyClicked) {
-                            alreadyClicked = true
-                            onClick()
-                        }
-                    },
-        ) {
-            AsyncImage(
-                model = imageRequest,
-                contentDescription = "Current Lock Screen Wallpaper",
-                modifier =
-                    Modifier
-                        .fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
-    }
-}
-
-@Composable
-fun WorkInfoListScreen() {
-    val context = LocalContext.current
-    val workManager = WorkManager.getInstance(context)
-    val workInfosFlow: Flow<List<WorkInfo>> =
-        workManager.getWorkInfosForUniqueWorkLiveData("wallpaper_update").asFlow()
-    val workInfos by workInfosFlow.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    WorkInfoList(workInfos)
-}
-
-// Composable to display a list of WorkInfo
-@Composable
-fun WorkInfoList(workInfos: List<WorkInfo>) {
-    LazyColumn {
-        items(workInfos) { workInfo ->
-            WorkInfoItem(workInfo)
-        }
-    }
-}
-
-// Composable to display a single WorkInfo item
-@Composable
-fun WorkInfoItem(workInfo: WorkInfo) {
-    Column(modifier = Modifier.padding(8.dp)) {
-        Text(text = "ID: ${workInfo.id}")
-        Text(text = "State: ${workInfo.state}")
-        Text(text = "Tags: ${workInfo.tags.joinToString()}")
-    }
-}
-
-@Composable
-fun StarRatingBar(
-    modifier: Modifier = Modifier,
-    maxStars: Int = 5,
-    rating: Int,
-    onRatingChanged: (Int) -> Unit
-) {
-    Row(modifier = modifier) {
-        for (starIndex in 1..maxStars) {
-            IconButton(onClick = { onRatingChanged(starIndex) }) {
-                Icon(
-                    imageVector = if (starIndex <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                    contentDescription = if (starIndex <= rating) "Filled Star $starIndex" else "Empty Star $starIndex",
-                    tint = if (starIndex <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.5f
-                    )
-                )
-            }
-        }
-    }
-}
