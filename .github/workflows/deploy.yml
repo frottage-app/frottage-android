@@ -57,17 +57,16 @@ jobs:
       run: |
         devbox run -- ./gradlew assembleDebug
 
-    - name: Prepare Keystore
+    - name: Prepare Keystore and Play Store Service Account
       run: |
-        devbox run -- mkdir -p keys
+        mkdir -p keys
         echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keys/keystore.jks
+        echo "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" > keys/play-service-account.json
+        ls -l keys
+        cat keys/play-service-account.json
+        file keys/keystore.jks
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-
-    - name: Prepare Play Store Service Account
-      run: |
-        echo "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" > keys/play-service-account.json
-      env:
         PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
 
     - name: Deploy to Play Store with Fastlane
@@ -76,9 +75,3 @@ jobs:
       env:
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: frottage-apk
-        path: app/build/outputs/apk/debug/frottage.apk
