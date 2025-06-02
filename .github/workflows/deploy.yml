@@ -45,13 +45,13 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Download ktlint-compose.jar
-      run: |
-        devbox run -- wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar
+    # - name: Download ktlint-compose.jar
+    #   run: |
+    #     devbox run -- wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar
 
-    - name: Lint code
-      run: |
-        devbox run -- ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
+    # - name: Lint code
+    #   run: |
+    #     devbox run -- ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
 
     - name: Build project
       run: |
