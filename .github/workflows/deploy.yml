@@ -13,12 +13,11 @@ permissions:
   contents: read
 
 env:
-  EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-  EARTHLY_ORG: ${{ secrets.EARTHLY_ORG }}
-  EARTHLY_SATELLITE: ${{ secrets.EARTHLY_SATELLITE }}
-  EARTHLY_CI: true
-  GITHUB_ACTIONS: true # Better earthly outputs in github actions
+  GITHUB_ACTIONS: true # For tools that might adjust output for GHA
   FORCE_COLOR: 1
+  GRADLE_OPTS: -Dorg.gradle.daemon=false # Ensure Gradle daemon is not used
+  LC_ALL: en_US.UTF-8 # Recommended for Fastlane
+  LANG: en_US.UTF-8   # Recommended for Fastlane
 
 jobs:
   deploy:
@@ -28,24 +27,61 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Expose EARTHLY_VERSION from devbox.lock
-      run: |
-        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
-        EARTHLY_VERSION="$(jq -r ".packages[\"earthly@latest\"].version" devbox.lock)"
-        echo "EARTHLY_VERSION=$EARTHLY_VERSION" >> "$GITHUB_ENV"
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
 
-    - name: Install earthly
-      uses: earthly/actions-setup@v1
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+
+    - name: Setup Devbox
+      uses: jetpack-io/devbox-action@v0
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
       with:
-        version: ${{ env.EARTHLY_VERSION }}
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
 
-    - name: Deploy
-      run:
-        earthly --allow-privileged --secret KEYSTORE_BASE64 --secret PLAY_SERVICE_ACCOUNT_JSON --secret SIGNING_STORE_PASSWORD --secret SIGNING_KEY_PASSWORD +ci-deploy
+    - name: Download ktlint-compose.jar
+      run: |
+        devbox run -- wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar
+
+    - name: Lint code
+      run: |
+        devbox run -- ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
+
+    - name: Build project
+      run: |
+        devbox run -- ./gradlew assembleDebug
+
+    - name: Prepare Keystore
+      run: |
+        devbox run -- mkdir -p keys
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keys/keystore.jks
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+    - name: Prepare Play Store Service Account
+      run: |
+        echo "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" > keys/play-service-account.json
+      env:
         PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+
+    - name: Deploy to Play Store with Fastlane
+      run: |
+        devbox run -- fastlane playstore
+      env:
         SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
         SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: frottage-apk
+        path: app/build/outputs/apk/debug/frottage.apk
