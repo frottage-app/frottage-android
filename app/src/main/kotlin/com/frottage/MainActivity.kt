@@ -86,6 +86,14 @@ import com.frottage.ui.screens.FullscreenImageScreen
 import com.frottage.ui.composables.WorkInfoListScreen
 import com.frottage.ImageMetadataService
 import com.frottage.getFrottageTargetKey
+import androidx.compose.material.icons.filled.Download
+import android.graphics.Bitmap
+import android.content.ContentValues
+import android.provider.MediaStore
+import android.os.Environment
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 
 class MainActivity :
     ComponentActivity(),
@@ -294,7 +302,19 @@ class MainActivity :
 
                                 Spacer(modifier = Modifier.height(24.dp))
 
-                                SetWallpaperButton()
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.width(300.dp)
+                                ) {
+                                    SetWallpaperButton(modifier = Modifier.weight(1f).fillMaxWidth())
+                                    currentImageUrl?.let { imageUrl ->
+                                        SaveWallpaperButton(
+                                            imageUrl = imageUrl,
+                                            imageUniqueId = currentImageUniqueId
+                                        )
+                                    }
+                                }
 
 
                             }
@@ -316,13 +336,13 @@ class MainActivity :
     }
 
     @Composable
-    private fun SetWallpaperButton() {
+    private fun SetWallpaperButton(modifier: Modifier = Modifier) {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var isLoading by remember { mutableStateOf(false) }
 
         Button(
-            modifier = Modifier.width(300.dp),
+            modifier = modifier,
             onClick = {
                 scope.launch {
                     isLoading = true
@@ -593,6 +613,78 @@ class MainActivity :
     companion object {
         val workManagerConfiguration: Configuration
             get() = Configuration.Builder().setMinimumLoggingLevel(Log.INFO).build()
+    }
+
+    @Composable
+    private fun SaveWallpaperButton(imageUrl: String, imageUniqueId: String?) {
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        var isLoading by remember { mutableStateOf(false) }
+
+        IconButton(
+            onClick = {
+                scope.launch {
+                    isLoading = true
+                    try {
+                        val imageLoader = ImageLoader(context)
+                        val request = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .allowHardware(false) // Important for direct bitmap access
+                            .build()
+                        val result = (imageLoader.execute(request) as? SuccessResult)?.drawable
+                        val bitmap = (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
+
+                        if (bitmap != null) {
+                            val displayName = "frottage_${imageUniqueId ?: System.currentTimeMillis()}.jpg"
+                            val mimeType = "image/jpeg"
+                            val relativeLocation = Environment.DIRECTORY_PICTURES + "/Frottage"
+
+                            val contentValues = ContentValues().apply {
+                                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                                put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                                put(MediaStore.Images.Media.RELATIVE_PATH, relativeLocation)
+                                put(MediaStore.Images.Media.IS_PENDING, 1) // Keep file write access
+                            }
+
+                            val resolver = context.contentResolver
+                            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+                            uri?.let {
+                                withContext(Dispatchers.IO) {
+                                    resolver.openOutputStream(it)?.use { outStream ->
+                                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outStream)
+                                    }
+                                }
+                                contentValues.clear()
+                                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0) // Release file access
+                                resolver.update(it, contentValues, null, null)
+                                Log.i("SaveWallpaper", "Groovy! Image saved to MediaStore: $it")
+                                Toast.makeText(context, "Frottage saved to Pictures/Frottage!", Toast.LENGTH_SHORT).show()
+                            } ?: throw Exception("MediaStore URI was null, frottage fail!")
+
+                        } else {
+                            throw Exception("Failed to load bitmap from URL.")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SaveWallpaper", "Frottage fail! Could not save image: ${e.message}", e)
+                        Toast.makeText(context, "Frottage fail! Could not save image: ${e.message}", Toast.LENGTH_SHORT).show()
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.Download,
+                    contentDescription = "Save Wallpaper",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 
