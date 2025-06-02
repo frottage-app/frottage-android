@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Config for frottage.app and frottage.fly.dev (copied from main) -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">frottage.app</domain>
         <domain includeSubdomains="true">frottage.fly.dev</domain>
@@ -10,10 +11,16 @@
             <certificates src="system" />
         </trust-anchors>
     </domain-config>
+
+    <!-- Config for local development (10.0.2.2 for emulator) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
     <!-- Default base config to trust system CAs for other domains -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-</network-security-config>
+</network-security-config> 
