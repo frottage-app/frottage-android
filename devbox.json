@@ -2,7 +2,6 @@
   "packages": [
     "path:./flakes/android-sdk#android-sdk", // manage sdk versions in flakes/android-sdk/flake.nix
     // "path:./flakes/android-sdk#gradle", // Use Gradle wrapper with aapt2 workaround
-    "earthly@latest",
     "git@latest",
     "jdk@17",
     "just@latest",
