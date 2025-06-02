@@ -69,11 +69,8 @@ object WallpaperSetter {
         val imageLoader = ImageLoader(context)
         val imageRequest = imageRequest.newBuilder().allowHardware(false).build()
 
-        Log.i(TAG, "Downloading wallpaper from $url, cachekey: ${imageRequest.diskCacheKey}")
-        logToFile(
-            context,
-            "Downloading wallpaper from $url, cachekey: ${imageRequest.diskCacheKey}"
-        )
+        Log.i(TAG, "Downloading wallpaper from $url")
+        logToFile(context, "Downloading wallpaper from $url")
 
         val image =
             (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable

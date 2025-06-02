@@ -15,22 +15,17 @@ interface Schedule {
         pattern: String = "yyyy-MM-dd_HH-mm-ss",
     ): String = dateTime.format(DateTimeFormatter.ofPattern(pattern))
 
-    fun imageCacheKey(
-        url: String,
-        now: ZonedDateTime,
-    ): String = zonedDateTimeToStringKey(prevUpdateTime(now)) + url
+    fun getActivePeriodTimestampKey(now: ZonedDateTime): String =
+        zonedDateTimeToStringKey(prevUpdateTime(now))
 
     fun imageRequest(
         url: String,
         now: ZonedDateTime,
         context: Context,
     ): ImageRequest {
-        val imageCacheKey = imageCacheKey(url, now)
         return ImageRequest
             .Builder(context)
             .data(url)
-            .diskCacheKey(imageCacheKey)
-            .memoryCacheKey(imageCacheKey)
             .build()
     }
 }

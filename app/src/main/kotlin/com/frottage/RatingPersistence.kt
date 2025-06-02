@@ -10,7 +10,7 @@ object RatingPersistence {
 
     fun saveRating(context: Context, imageUniqueId: String, rating: Int) {
         if (imageUniqueId.isBlank()) {
-            Log.w(TAG, "Attempted to save rating with a blank imageUniqueId. That's a frottage no-go!")
+            Log.w(TAG, "Attempted to save rating with a blank image ID. That's a frottage no-go!")
             return
         }
         try {
@@ -20,13 +20,13 @@ object RatingPersistence {
                 Log.i(TAG, "Groovy! Saved rating $rating for image ID: '$imageUniqueId'. This is some top-tier frottage!")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Frottage fail! Couldn't save rating for '$imageUniqueId'. Bummer: ${e.message}", e)
+            Log.e(TAG, "Frottage fail! Couldn't save rating for image ID '$imageUniqueId'. Bummer: ${e.message}", e)
         }
     }
 
     fun loadRating(context: Context, imageUniqueId: String): Int {
         if (imageUniqueId.isBlank()) {
-            Log.w(TAG, "Trying to load a rating with a blank imageUniqueId? That's not very frottage of you.")
+            Log.w(TAG, "Trying to load a rating with a blank image ID? That's not very frottage of you.")
             return 0
         }
         try {
@@ -39,7 +39,7 @@ object RatingPersistence {
             }
             return rating
         } catch (e: Exception) {
-            Log.e(TAG, "Oh dear, a frottage mishap! Couldn't load rating for '$imageUniqueId': ${e.message}", e)
+            Log.e(TAG, "Oh dear, a frottage mishap! Couldn't load rating for image ID '$imageUniqueId': ${e.message}", e)
             return 0 // Default to 0 on error
         }
     }

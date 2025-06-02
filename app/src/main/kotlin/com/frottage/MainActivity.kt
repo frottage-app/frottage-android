@@ -84,6 +84,8 @@ import com.frottage.ui.composables.StarRatingBar
 import com.frottage.ui.composables.NextUpdateTime
 import com.frottage.ui.screens.FullscreenImageScreen
 import com.frottage.ui.composables.WorkInfoListScreen
+import com.frottage.ImageMetadataService
+import com.frottage.getFrottageTargetKey
 
 class MainActivity :
     ComponentActivity(),
@@ -175,17 +177,16 @@ class MainActivity :
                                                         imageId,
                                                         newRating
                                                     )
-                                                    // Still submit to the backend as before
                                                     submitRating(
                                                         contextForRating,
                                                         newRating,
-                                                        targetKeyVal
+                                                        imageId
                                                     )
                                                 }
                                             } else {
                                                 Log.w(
                                                     "MainActivity",
-                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId is blank! Will still try to submit to backend for '$targetKeyVal'."
+                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is blank!"
                                                 )
                                                 scope.launch { // Attempt backend submission even if local save key is bad
                                                     submitRating(
@@ -198,7 +199,7 @@ class MainActivity :
                                         } ?: run {
                                             Log.w(
                                                 "MainActivity",
-                                                "Frottage Alert: Cannot save rating locally, imageUniqueId is null! Will still try to submit to backend for '$targetKeyVal'."
+                                                "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is null!"
                                             )
                                             scope.launch { // Attempt backend submission even if local save key is bad
                                                 submitRating(
@@ -380,34 +381,35 @@ class MainActivity :
             val wallpaperSource =
                 SettingsManager.currentWallpaperSource
 
-            LaunchedEffect(wallpaperSource, context) { // Re-calculate if source or context changes
-                val url = wallpaperSource.lockScreen?.url(context)
-                onImageUrlChanged(url) // Keep for any existing dependencies
+            LaunchedEffect(wallpaperSource, context) { 
+                val imageUrl = wallpaperSource.lockScreen?.url(context) 
+                onImageUrlChanged(imageUrl)
 
-                url?.let { lockScreenUrlValue ->
-                    val now = ZonedDateTime.now(ZoneId.of("UTC"))
-                    val imageRequest = wallpaperSource.schedule.imageRequest(
-                        lockScreenUrlValue,
-                        now,
-                        context
+                if (imageUrl != null) {
+                    val currentTargetKey = getFrottageTargetKey(context) 
+                    Log.d("MainActivity.Preview", "Fetching image ID for targetKey: $currentTargetKey")
+                    val imageId = ImageMetadataService.fetchAndParseImageId(
+                        context,
+                        wallpaperSource.schedule,
+                        currentTargetKey
                     )
-                    onImageUniqueIdChanged(imageRequest.diskCacheKey)
-                } ?: run {
-                    onImageUniqueIdChanged(null) // No URL, so no unique ID
+                    Log.d("MainActivity.Preview", "Image ID fetched: $imageId")
+                    onImageUniqueIdChanged(imageId)
+                } else {
+                    Log.d("MainActivity.Preview", "Image URL is null, setting imageId to null")
+                    onImageUniqueIdChanged(null)
                 }
             }
 
             wallpaperSource.lockScreen?.let {
                 val lockScreenUrl =
-                    it.url(context) // This will be the same as currentImageUrl if lockScreen is not null
-                val now = ZonedDateTime.now(ZoneId.of("UTC"))
+                    it.url(context) 
                 val imageRequest =
-                    wallpaperSource.schedule.imageRequest(
+                    wallpaperSource.schedule.imageRequest( 
                         lockScreenUrl,
-                        now,
+                        ZonedDateTime.now(ZoneId.of("UTC")), 
                         context,
                     )
-                // The LaunchedEffect above handles calling onImageUniqueIdChanged.
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = "Current Lock Screen Wallpaper",

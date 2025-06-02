@@ -13,7 +13,8 @@ import java.util.UUID
 
 private const val PREFS_NAME = "FrottagePrefs"
 private const val DEVICE_ID_KEY = "myFrottageDeviceId"
-// private const val API_HOST = "http://10.0.2.2:3000" // for local testing
+
+//private const val API_HOST = "http://10.0.2.2:3000" // for local testing
 private const val API_HOST = "https://frottage.fly.dev"
 
 private fun getMyDeviceId(context: Context): String {
@@ -29,19 +30,22 @@ private fun getMyDeviceId(context: Context): String {
     return deviceId
 }
 
-private suspend fun postRatingInternal(targetName: String, stars: Int, deviceId: String): Boolean {
+private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: String): Boolean {
     try {
-        val voteUrl = URL("$API_HOST/api/vote_latest_by_target") // Using the constant
+        val voteUrl = URL("$API_HOST/api/vote")
         val payload =
             JSONObject()
                 .apply {
-                    put("targetName", targetName)
+                    put("imageId", imageId)
                     put("stars", stars)
                     put("deviceId", deviceId)
                 }
                 .toString()
 
-        Log.d("StarRatingSvc", "Posting rating with payload: $payload to URL: $voteUrl")
+        Log.d(
+            "StarRatingSvc",
+            "Posting rating with payload: $payload to URL: $voteUrl. This is so frottage!"
+        )
 
         val responseCode =
             withContext(Dispatchers.IO) {
@@ -69,20 +73,20 @@ private suspend fun postRatingInternal(targetName: String, stars: Int, deviceId:
         return if (responseCode in 200..299) {
             Log.i(
                 "StarRatingSvc",
-                "POST request successful (HTTP $responseCode) for target: $targetName, stars: $stars, deviceId: $deviceId. How groovy is that?!"
+                "POST request successful (HTTP $responseCode) for imageId: $imageId, stars: $stars. How groovy is that?!"
             )
             true
         } else {
             Log.e(
                 "StarRatingSvc",
-                "POST request failed (HTTP $responseCode) for target: $targetName, stars: $stars, deviceId: $deviceId. What a frottage shame."
+                "POST request failed (HTTP $responseCode) for imageId: $imageId, stars: $stars. What a frottage shame."
             )
             false
         }
     } catch (e: Exception) {
         Log.e(
             "StarRatingSvc",
-            "Exception submitting rating for target $targetName, stars: $stars, deviceId: $deviceId: ${e.message}",
+            "Exception submitting rating for imageId $imageId, stars: $stars: ${e.message}",
             e
         )
         return false
@@ -92,31 +96,60 @@ private suspend fun postRatingInternal(targetName: String, stars: Int, deviceId:
 internal suspend fun submitRating(
     context: Context,
     rating: Int,
-    targetKey: String
+    imageIdString: String?
 ) {
+    if (imageIdString == null || imageIdString.isBlank()) {
+        Log.e(
+            "StarRatingSvc",
+            "Frottage Alert! Attempting to submit rating with null or blank imageIdString. Cannot proceed."
+        )
+        withContext(Dispatchers.Main) {
+            Toast.makeText(context, "Cannot submit rating: Image ID missing.", Toast.LENGTH_LONG)
+                .show()
+        }
+        return
+    }
+
+    val imageIdLong: Long
+    try {
+        imageIdLong = imageIdString.toLong()
+    } catch (e: NumberFormatException) {
+        Log.e(
+            "StarRatingSvc",
+            "Frottage critical error! imageIdString '$imageIdString' is not a valid Long. Cannot submit rating.",
+            e
+        )
+        withContext(Dispatchers.Main) {
+            Toast.makeText(
+                context,
+                "Cannot submit rating: Invalid Image ID format.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        return
+    }
+
     Log.d(
         "StarRatingSvc",
-        "Attempting to submit rating: $rating stars for target: '$targetKey'"
+        "Attempting to submit rating: $rating stars for imageId: $imageIdLong ($imageIdString)"
     )
 
-    // Get device ID
     val deviceId = getMyDeviceId(context)
+    val success = postRatingInternal(imageIdLong, rating, deviceId)
 
-    // Post the rating using the helper function
-    val success = postRatingInternal(targetKey, rating, deviceId)
-
-    // Show feedback to the user on the main thread
     withContext(Dispatchers.Main) {
         if (success) {
             Log.i(
                 "StarRatingSvc",
-                "Rating submitted successfully to server for target: $targetKey, stars: $rating. Awesome frottage!"
+                "Rating submitted successfully to server for imageId: $imageIdLong, stars: $rating. Awesome frottage!"
             )
         } else {
             Log.e(
                 "StarRatingSvc",
-                "Failed to submit rating to server for target: $targetKey. This is a frottage bummer."
+                "Failed to submit rating to server for imageId: $imageIdLong. This is a frottage bummer."
             )
+            // Toast is already handled in fetchAndParseImageId for metadata fetch issues, 
+            // but we might want a specific one for rating submission failure itself.
             Toast.makeText(context, "Failed to submit rating. Please try again.", Toast.LENGTH_LONG)
                 .show()
         }

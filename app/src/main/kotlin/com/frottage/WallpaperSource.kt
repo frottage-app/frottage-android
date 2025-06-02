@@ -2,6 +2,8 @@ package com.frottage
 
 import android.content.Context
 import android.content.res.Configuration
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 
 data class WallpaperSource(
@@ -30,13 +32,7 @@ fun isDarkTheme(context: Context): Boolean {
     }
 }
 
-const val baseUrl = "https://frottage.app/static"
-
-fun frottageUrl(context: Context): String {
-    val targetKey = getFrottageTargetKey(context) // e.g. "desktop", "desktop-light", "mobile"
-    val filename = "wallpaper-${targetKey}-latest.jpg"
-    return "${baseUrl}/${filename}"
-}
+const val frottageStaticBaseUrl = "https://frottage.app/static"
 
 fun getFrottageTargetKey(context: Context): String {
     return if (isTablet(context)) {
@@ -50,27 +46,43 @@ fun getFrottageTargetKey(context: Context): String {
     }
 }
 
+fun getFrottageUrlForActivePeriod(context: Context, schedule: Schedule): String {
+    val targetKey = getFrottageTargetKey(context)
+    val now = ZonedDateTime.now(ZoneId.of("UTC"))
+    val timestampKey = schedule.getActivePeriodTimestampKey(now)
+    return "${frottageStaticBaseUrl}/wallpaper-${targetKey}-${timestampKey}.jpg"
+}
 
+val frottageSchedule = UtcHoursSchedule(listOf(1, 7, 13, 19))
 val frottageWallpaperSource = WallpaperSource(
-    schedule = UtcHoursSchedule(listOf(1, 7, 13, 19)),
+    schedule = frottageSchedule,
     lockScreen = ScreenSetting(
-        url = { context -> frottageUrl(context) },
+        url = { context -> getFrottageUrlForActivePeriod(context, frottageSchedule) },
         blurred = { _ -> false },
     ),
     homeScreen = ScreenSetting(
-        url = { context -> frottageUrl(context) },
+        url = { context -> getFrottageUrlForActivePeriod(context, frottageSchedule) },
         blurred = { context -> SettingsManager.getHomeScreenBlur(context) },
     ),
 )
 
+val unsplashSchedule = EveryXSecondsSchedule(15)
 val unsplashWallpaperSource = WallpaperSource(
-    schedule = EveryXSecondsSchedule(15),
+    schedule = unsplashSchedule,
     lockScreen = ScreenSetting(
-        url = { context -> "https://unsplash.it/1080/2400/?random" },
+        url = { context ->
+            val timestampKey =
+                unsplashSchedule.getActivePeriodTimestampKey(ZonedDateTime.now(ZoneId.of("UTC")))
+            "https://unsplash.it/1080/2400/?random&timestamp=${timestampKey}"
+        },
         blurred = { _ -> false },
     ),
     homeScreen = ScreenSetting(
-        url = { context -> "https://unsplash.it/1080/2400/?random" },
+        url = { context ->
+            val timestampKey =
+                unsplashSchedule.getActivePeriodTimestampKey(ZonedDateTime.now(ZoneId.of("UTC")))
+            "https://unsplash.it/1080/2400/?random&timestamp=${timestampKey}"
+        },
         blurred = { context -> SettingsManager.getHomeScreenBlur(context) },
     ),
 )
