@@ -29,14 +29,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Install Nix
-      uses: DeterminateSystems/nix-installer-action@main
-
     - name: Setup Nix Cache
       uses: DeterminateSystems/magic-nix-cache-action@main
 
-    - name: Setup Devbox
-      uses: jetpack-io/devbox-action@v0
+    - name: Install devbox
+      uses: jetify-com/devbox-install-action@v0.13.0
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
