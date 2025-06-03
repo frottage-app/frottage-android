@@ -12,20 +12,25 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun StarRatingBar(
+    rating: Int,
+    onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     maxStars: Int = 5,
-    rating: Int,
-    onRatingChanged: (Int) -> Unit
 ) {
     Row(modifier = modifier) {
         for (starIndex in 1..maxStars) {
-            IconButton(onClick = { onRatingChanged(starIndex) }) {
+            IconButton(onClick = { onRatingChange(starIndex) }) {
                 Icon(
                     imageVector = if (starIndex <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (starIndex <= rating) "Filled Star $starIndex" else "Empty Star $starIndex",
-                    tint = if (starIndex <= rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = 0.5f
-                    )
+                    tint =
+                        if (starIndex <= rating) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = 0.5f,
+                            )
+                        },
                 )
             }
         }

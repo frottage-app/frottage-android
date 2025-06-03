@@ -16,9 +16,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -85,7 +86,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import androidx.core.content.ContextCompat
 
 class MainActivity :
     ComponentActivity(),
@@ -128,9 +128,9 @@ class MainActivity :
                                 Preview(
                                     navController = navController,
                                     triggerUpdate = triggerUpdate,
+                                    onImageUrlChange = { url -> currentImageUrl = url },
+                                    onImageUniqueIdChange = { id -> currentImageUniqueId = id },
                                     modifier = Modifier.weight(1f),
-                                    onImageUrlChanged = { url -> currentImageUrl = url },
-                                    onImageUniqueIdChanged = { id -> currentImageUniqueId = id }
                                 )
 
                                 Spacer(modifier = Modifier.height(14.dp))
@@ -140,33 +140,34 @@ class MainActivity :
                                 LaunchedEffect(currentImageUniqueId, contextForRating) {
                                     currentImageUniqueId?.let { imageId ->
                                         if (imageId.isNotBlank()) {
-                                            currentRating = RatingPersistence.loadRating(
-                                                contextForRating,
-                                                imageId
-                                            )
+                                            currentRating =
+                                                RatingPersistence.loadRating(
+                                                    contextForRating,
+                                                    imageId,
+                                                )
                                             Log.d(
                                                 "MainActivity",
-                                                "Attempted to load rating for ID '$imageId', got $currentRating. Groovy!"
+                                                "Attempted to load rating for ID '$imageId', got $currentRating. Groovy!",
                                             )
                                         } else {
                                             currentRating = 0 // Reset if ID is blank
                                             Log.d(
                                                 "MainActivity",
-                                                "Image ID is blank. Setting rating to 0. Not very frottage."
+                                                "Image ID is blank. Setting rating to 0. Not very frottage.",
                                             )
                                         }
                                     } ?: run {
                                         currentRating = 0 // Reset if ID is null
                                         Log.d(
                                             "MainActivity",
-                                            "Image ID is null. Setting rating to 0. A blank canvas for frottage!"
+                                            "Image ID is null. Setting rating to 0. A blank canvas for frottage!",
                                         )
                                     }
                                 }
 
                                 StarRatingBar(
                                     rating = currentRating,
-                                    onRatingChanged = { newRating ->
+                                    onRatingChange = { newRating ->
                                         currentRating = newRating // Update UI immediately
                                         val targetKeyVal = getFrottageTargetKey(contextForRating)
                                         currentImageUniqueId?.let { imageId ->
@@ -175,41 +176,43 @@ class MainActivity :
                                                     RatingPersistence.saveRating(
                                                         contextForRating,
                                                         imageId,
-                                                        newRating
+                                                        newRating,
                                                     )
                                                     submitRating(
                                                         contextForRating,
                                                         newRating,
-                                                        imageId
+                                                        imageId,
                                                     )
                                                 }
                                             } else {
                                                 Log.w(
                                                     "MainActivity",
-                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is blank!"
+                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is blank!",
                                                 )
-                                                scope.launch { // Attempt backend submission even if local save key is bad
+                                                scope.launch {
+                                                    // Attempt backend submission even if local save key is bad
                                                     submitRating(
                                                         contextForRating,
                                                         newRating,
-                                                        targetKeyVal
+                                                        targetKeyVal,
                                                     )
                                                 }
                                             }
                                         } ?: run {
                                             Log.w(
                                                 "MainActivity",
-                                                "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is null!"
+                                                "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is null!",
                                             )
-                                            scope.launch { // Attempt backend submission even if local save key is bad
+                                            scope.launch {
+                                                // Attempt backend submission even if local save key is bad
                                                 submitRating(
                                                     contextForRating,
                                                     newRating,
-                                                    targetKeyVal
+                                                    targetKeyVal,
                                                 )
                                             }
                                         }
-                                    }
+                                    },
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -218,35 +221,34 @@ class MainActivity :
                                     shape = RoundedCornerShape(20.dp),
                                     modifier = Modifier.width(300.dp),
                                 ) {
-
                                     Column(
-                                        modifier = Modifier
-                                            .padding(
-                                                start = 10.dp,
-                                                top = 18.dp,
-                                                end = 20.dp,
-                                                bottom = 8.dp,
-                                            )
-
+                                        modifier =
+                                            Modifier
+                                                .padding(
+                                                    start = 10.dp,
+                                                    top = 18.dp,
+                                                    end = 20.dp,
+                                                    bottom = 8.dp,
+                                                ),
                                     ) {
                                         Text(
                                             text = "Wallpaper Settings",
-                                            style = androidx.compose.ui.text.TextStyle(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 20.sp,
-                                            ),
-                                            modifier = Modifier.padding(
-                                                start = 12.dp,
-                                                bottom = 10.dp,
-                                            )
+                                            style =
+                                                androidx.compose.ui.text.TextStyle(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 20.sp,
+                                                ),
+                                            modifier =
+                                                Modifier.padding(
+                                                    start = 12.dp,
+                                                    bottom = 10.dp,
+                                                ),
                                         )
-                                        lockScreenEnableCheckbox()
-                                        homeScreenEnableCheckbox()
-                                        homeScreenBlurCheckbox()
+                                        LockScreenEnableCheckbox()
+                                        HomeScreenEnableCheckbox()
+                                        HomeScreenBlurCheckbox()
                                     }
-
                                 }
-
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -254,40 +256,43 @@ class MainActivity :
                                     shape = RoundedCornerShape(20.dp),
                                     modifier = Modifier.width(300.dp),
                                 ) {
-
                                     Column(
-                                        modifier = Modifier.padding(
-                                            start = 10.dp,
-                                            top = 18.dp,
-                                            end = 20.dp,
-                                            bottom = 8.dp,
-                                        )
-                                    )
-                                    {
+                                        modifier =
+                                            Modifier.padding(
+                                                start = 10.dp,
+                                                top = 18.dp,
+                                                end = 20.dp,
+                                                bottom = 8.dp,
+                                            ),
+                                    ) {
                                         Text(
                                             text = "Schedule",
-                                            style = androidx.compose.ui.text.TextStyle(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 20.sp,
-                                            ),
-                                            modifier = Modifier.padding(
-                                                start = 12.dp,
-                                                bottom = 10.dp,
-                                            )
+                                            style =
+                                                androidx.compose.ui.text.TextStyle(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 20.sp,
+                                                ),
+                                            modifier =
+                                                Modifier.padding(
+                                                    start = 12.dp,
+                                                    bottom = 10.dp,
+                                                ),
                                         )
                                         NextUpdateTime(
                                             key = triggerUpdate,
                                             navController = navController,
-                                            modifier = Modifier.padding(
-                                                start = 12.dp
-                                            ),
+                                            modifier =
+                                                Modifier.padding(
+                                                    start = 12.dp,
+                                                ),
                                         )
 
                                         ScheduleSwitch(
                                             triggerUpdate,
-                                            modifier = Modifier.padding(
-                                                start = 12.dp
-                                            ),
+                                            modifier =
+                                                Modifier.padding(
+                                                    start = 12.dp,
+                                                ),
                                         )
                                     }
                                 }
@@ -297,22 +302,21 @@ class MainActivity :
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.width(300.dp)
+                                    modifier = Modifier.width(300.dp),
                                 ) {
                                     SetWallpaperButton(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxWidth()
+                                        modifier =
+                                            Modifier
+                                                .weight(1f)
+                                                .fillMaxWidth(),
                                     )
                                     currentImageUrl?.let { imageUrl ->
                                         SaveWallpaperButton(
                                             imageUrl = imageUrl,
-                                            imageUniqueId = currentImageUniqueId
+                                            imageUniqueId = currentImageUniqueId,
                                         )
                                     }
                                 }
-
-
                             }
                         }
                         composable("fullscreen") {
@@ -346,39 +350,42 @@ class MainActivity :
                         WallpaperSetter.setWallpaper(context)
                     } catch (e: Exception) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context,
-                                "Error: ${e.message}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast
+                                .makeText(
+                                    context,
+                                    "Error: ${e.message}",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                         }
                     } finally {
                         isLoading = false
                     }
                 }
             },
-            enabled = !isLoading
+            enabled = !isLoading,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Setting Wallpaper...",
-                    style = androidx.compose.ui.text.TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                    )
+                    style =
+                        androidx.compose.ui.text.TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                        ),
                 )
             } else {
                 Text(
                     "Set Wallpaper",
-                    style = androidx.compose.ui.text.TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                    )
+                    style =
+                        androidx.compose.ui.text.TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                        ),
                 )
             }
         }
@@ -388,35 +395,36 @@ class MainActivity :
     private fun Preview(
         navController: NavHostController,
         triggerUpdate: Int,
-        modifier: Modifier,
-        onImageUrlChanged: (String?) -> Unit,
-        onImageUniqueIdChanged: (String?) -> Unit,
+        onImageUrlChange: (String?) -> Unit,
+        onImageUniqueIdChange: (String?) -> Unit,
+        modifier: Modifier = Modifier,
     ) {
         key(triggerUpdate) {
             val context = LocalContext.current
             val wallpaperSource =
                 SettingsManager.currentWallpaperSource
 
-            LaunchedEffect(wallpaperSource, context) {
+            LaunchedEffect(wallpaperSource, context, onImageUrlChange, onImageUniqueIdChange) {
                 val imageUrl = wallpaperSource.lockScreen?.url(context)
-                onImageUrlChanged(imageUrl)
+                onImageUrlChange(imageUrl)
 
                 if (imageUrl != null) {
                     val currentTargetKey = getFrottageTargetKey(context)
                     Log.d(
                         "MainActivity.Preview",
-                        "Fetching image ID for targetKey: $currentTargetKey"
+                        "Fetching image ID for targetKey: $currentTargetKey",
                     )
-                    val imageId = ImageMetadataService.fetchAndParseImageId(
-                        context,
-                        wallpaperSource.schedule,
-                        currentTargetKey
-                    )
+                    val imageId =
+                        ImageMetadataService.fetchAndParseImageId(
+                            context,
+                            wallpaperSource.schedule,
+                            currentTargetKey,
+                        )
                     Log.d("MainActivity.Preview", "Image ID fetched: $imageId")
-                    onImageUniqueIdChanged(imageId)
+                    onImageUniqueIdChange(imageId)
                 } else {
                     Log.d("MainActivity.Preview", "Image URL is null, setting imageId to null")
-                    onImageUniqueIdChanged(null)
+                    onImageUniqueIdChange(null)
                 }
             }
 
@@ -445,7 +453,10 @@ class MainActivity :
     }
 
     @Composable
-    private fun ScheduleSwitch(triggerUpdate: Int, modifier: Modifier) {
+    private fun ScheduleSwitch(
+        triggerUpdate: Int,
+        modifier: Modifier = Modifier,
+    ) {
         val context = LocalContext.current
         var isScheduleEnabled by remember {
             mutableStateOf(
@@ -456,8 +467,9 @@ class MainActivity :
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = modifier
-                .fillMaxWidth(),
+            modifier =
+                modifier
+                    .fillMaxWidth(),
         ) {
             Text("Enable schedule")
             Switch(
@@ -479,9 +491,8 @@ class MainActivity :
         }
     }
 
-
     @Composable
-    private fun homeScreenBlurCheckbox() {
+    private fun HomeScreenBlurCheckbox() {
         val context = LocalContext.current
         var isBlurEnabled by remember {
             mutableStateOf(
@@ -508,7 +519,7 @@ class MainActivity :
     }
 
     @Composable
-    private fun homeScreenEnableCheckbox() {
+    private fun HomeScreenEnableCheckbox() {
         val context = LocalContext.current
         var isHomeScreenEnabled by remember {
             mutableStateOf(
@@ -535,7 +546,7 @@ class MainActivity :
     }
 
     @Composable
-    private fun lockScreenEnableCheckbox() {
+    private fun LockScreenEnableCheckbox() {
         val context = LocalContext.current
         var isLockScreenEnabled by remember {
             mutableStateOf(
@@ -615,24 +626,28 @@ class MainActivity :
     }
 
     @Composable
-    private fun SaveWallpaperButton(imageUrl: String, imageUniqueId: String?) {
+    private fun SaveWallpaperButton(
+        imageUrl: String,
+        imageUniqueId: String?,
+    ) {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         var isLoading by remember { mutableStateOf(false) }
 
-        val permissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted: Boolean ->
-            if (isGranted) {
-                Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted after request. Groovy!")
-                // isLoading is already true from the onClick that launched the permission request
-                scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
-            } else {
-                Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied. Not very frottage.")
-                Toast.makeText(context, "Storage permission denied. Cannot save image.", Toast.LENGTH_SHORT).show()
-                isLoading = false // Reset isLoading if permission is denied by user
+        val permissionLauncher =
+            rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { isGranted: Boolean ->
+                if (isGranted) {
+                    Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted after request. Groovy!")
+                    // isLoading is already true from the onClick that launched the permission request
+                    scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                } else {
+                    Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied. Not very frottage.")
+                    Toast.makeText(context, "Storage permission denied. Cannot save image.", Toast.LENGTH_SHORT).show()
+                    isLoading = false // Reset isLoading if permission is denied by user
+                }
             }
-        }
 
         IconButton(
             onClick = {
@@ -655,7 +670,7 @@ class MainActivity :
                     scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
                 }
             },
-            enabled = !isLoading
+            enabled = !isLoading,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -663,7 +678,7 @@ class MainActivity :
                 Icon(
                     imageVector = Icons.Filled.Download, // Ensure this import is present
                     contentDescription = "Save Wallpaper",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -674,37 +689,40 @@ class MainActivity :
         context: android.content.Context,
         imageUrl: String,
         imageUniqueId: String?,
-        onComplete: () -> Unit // Lambda to call in finally block
+        onComplete: () -> Unit, // Lambda to call in finally block
     ) {
         try {
             val imageLoader = ImageLoader(context)
-            val request = ImageRequest.Builder(context)
-                .data(imageUrl)
-                .allowHardware(false) // Important for direct bitmap access
-                .build()
+            val request =
+                ImageRequest
+                    .Builder(context)
+                    .data(imageUrl)
+                    .allowHardware(false) // Important for direct bitmap access
+                    .build()
             val result = (imageLoader.execute(request) as? SuccessResult)?.drawable
             val bitmap = (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
 
             if (bitmap != null) {
                 val displayName = "frottage_${imageUniqueId ?: System.currentTimeMillis()}.jpg"
                 val mimeType = "image/jpeg"
-                
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
-                    put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Frottage")
-                        put(MediaStore.Images.Media.IS_PENDING, 1)
-                    } else {
-                        val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                        val frottageDir = java.io.File(picturesDir, "Frottage")
-                        if (!frottageDir.exists()) {
-                            frottageDir.mkdirs()
+
+                val contentValues =
+                    ContentValues().apply {
+                        put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                        put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Frottage")
+                            put(MediaStore.Images.Media.IS_PENDING, 1)
+                        } else {
+                            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                            val frottageDir = java.io.File(picturesDir, "Frottage")
+                            if (!frottageDir.exists()) {
+                                frottageDir.mkdirs()
+                            }
+                            val imageFile = java.io.File(frottageDir, displayName)
+                            put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
                         }
-                        val imageFile = java.io.File(frottageDir, displayName)
-                        put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
                     }
-                }
 
                 val resolver = context.contentResolver
                 val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
@@ -723,7 +741,6 @@ class MainActivity :
                     Log.i("SaveWallpaper", "Groovy! Image saved to MediaStore: $it")
                     Toast.makeText(context, "Image saved to Pictures/Frottage!", Toast.LENGTH_SHORT).show()
                 } ?: throw Exception("MediaStore URI was null, frottage fail!")
-
             } else {
                 throw Exception("Failed to load bitmap from URL.")
             }
@@ -735,4 +752,3 @@ class MainActivity :
         }
     }
 }
-

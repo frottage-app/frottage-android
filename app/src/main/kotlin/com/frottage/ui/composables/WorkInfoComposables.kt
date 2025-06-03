@@ -29,8 +29,11 @@ fun WorkInfoListScreen() {
 
 // Composable to display a list of WorkInfo
 @Composable
-fun WorkInfoList(workInfos: List<WorkInfo>) {
-    LazyColumn {
+fun WorkInfoList(
+    workInfos: List<WorkInfo>,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(modifier = modifier) {
         items(workInfos) { workInfo ->
             WorkInfoItem(workInfo)
         }
@@ -39,8 +42,11 @@ fun WorkInfoList(workInfos: List<WorkInfo>) {
 
 // Composable to display a single WorkInfo item
 @Composable
-fun WorkInfoItem(workInfo: WorkInfo) {
-    Column(modifier = Modifier.padding(8.dp)) {
+fun WorkInfoItem(
+    workInfo: WorkInfo,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.padding(8.dp)) {
         Text(text = "ID: ${workInfo.id}")
         Text(text = "State: ${workInfo.state}")
         Text(text = "Tags: ${workInfo.tags.joinToString()}")

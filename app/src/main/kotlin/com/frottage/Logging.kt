@@ -7,13 +7,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.frottage.ui.composables.WorkInfoListScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -23,7 +28,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import com.frottage.ui.composables.WorkInfoListScreen
 
 fun logToFile(
     context: Context,
@@ -48,7 +52,10 @@ fun formatTimestampAsLocalTime(timestamp: Long): String {
 }
 
 @Composable
-fun LogFileView(onClick: () -> Unit) {
+fun LogFileView(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     var logLines by remember { mutableStateOf(listOf<String>()) }
 
@@ -56,6 +63,7 @@ fun LogFileView(onClick: () -> Unit) {
         logLines = loadLogFile(context)
     }
     Column(
+        modifier = modifier,
         // modifier =
         //     Modifier
         //         .fillMaxSize()

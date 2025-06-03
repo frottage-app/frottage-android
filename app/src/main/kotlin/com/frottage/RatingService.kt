@@ -14,7 +14,7 @@ import java.util.UUID
 private const val PREFS_NAME = "FrottagePrefs"
 private const val DEVICE_ID_KEY = "myFrottageDeviceId"
 
-//private const val API_HOST = "http://10.0.2.2:3000" // for local testing
+// private const val API_HOST = "http://10.0.2.2:3000" // for local testing
 private const val API_HOST = "https://frottage.fly.dev"
 
 private fun getMyDeviceId(context: Context): String {
@@ -30,7 +30,11 @@ private fun getMyDeviceId(context: Context): String {
     return deviceId
 }
 
-private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: String): Boolean {
+private suspend fun postRatingInternal(
+    imageId: Long,
+    stars: Int,
+    deviceId: String,
+): Boolean {
     try {
         val voteUrl = URL("$API_HOST/api/vote")
         val payload =
@@ -39,12 +43,11 @@ private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: Stri
                     put("imageId", imageId)
                     put("stars", stars)
                     put("deviceId", deviceId)
-                }
-                .toString()
+                }.toString()
 
         Log.d(
             "StarRatingSvc",
-            "Posting rating with payload: $payload to URL: $voteUrl. This is so frottage!"
+            "Posting rating with payload: $payload to URL: $voteUrl. This is so frottage!",
         )
 
         val responseCode =
@@ -54,7 +57,7 @@ private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: Stri
                     connection.requestMethod = "POST"
                     connection.setRequestProperty(
                         "Content-Type",
-                        "application/json; charset=utf-8"
+                        "application/json; charset=utf-8",
                     )
                     connection.setRequestProperty("Accept", "application/json")
                     connection.connectTimeout = 5000 // 5 seconds
@@ -73,13 +76,13 @@ private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: Stri
         return if (responseCode in 200..299) {
             Log.i(
                 "StarRatingSvc",
-                "POST request successful (HTTP $responseCode) for imageId: $imageId, stars: $stars. How groovy is that?!"
+                "POST request successful (HTTP $responseCode) for imageId: $imageId, stars: $stars. How groovy is that?!",
             )
             true
         } else {
             Log.e(
                 "StarRatingSvc",
-                "POST request failed (HTTP $responseCode) for imageId: $imageId, stars: $stars. What a frottage shame."
+                "POST request failed (HTTP $responseCode) for imageId: $imageId, stars: $stars. What a frottage shame.",
             )
             false
         }
@@ -87,7 +90,7 @@ private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: Stri
         Log.e(
             "StarRatingSvc",
             "Exception submitting rating for imageId $imageId, stars: $stars: ${e.message}",
-            e
+            e,
         )
         return false
     }
@@ -96,15 +99,16 @@ private suspend fun postRatingInternal(imageId: Long, stars: Int, deviceId: Stri
 internal suspend fun submitRating(
     context: Context,
     rating: Int,
-    imageIdString: String?
+    imageIdString: String?,
 ) {
     if (imageIdString == null || imageIdString.isBlank()) {
         Log.e(
             "StarRatingSvc",
-            "Frottage Alert! Attempting to submit rating with null or blank imageIdString. Cannot proceed."
+            "Frottage Alert! Attempting to submit rating with null or blank imageIdString. Cannot proceed.",
         )
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Cannot submit rating: Image ID missing.", Toast.LENGTH_LONG)
+            Toast
+                .makeText(context, "Cannot submit rating: Image ID missing.", Toast.LENGTH_LONG)
                 .show()
         }
         return
@@ -117,21 +121,22 @@ internal suspend fun submitRating(
         Log.e(
             "StarRatingSvc",
             "Frottage critical error! imageIdString '$imageIdString' is not a valid Long. Cannot submit rating.",
-            e
+            e,
         )
         withContext(Dispatchers.Main) {
-            Toast.makeText(
-                context,
-                "Cannot submit rating: Invalid Image ID format.",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast
+                .makeText(
+                    context,
+                    "Cannot submit rating: Invalid Image ID format.",
+                    Toast.LENGTH_LONG,
+                ).show()
         }
         return
     }
 
     Log.d(
         "StarRatingSvc",
-        "Attempting to submit rating: $rating stars for imageId: $imageIdLong ($imageIdString)"
+        "Attempting to submit rating: $rating stars for imageId: $imageIdLong ($imageIdString)",
     )
 
     val deviceId = getMyDeviceId(context)
@@ -141,16 +146,17 @@ internal suspend fun submitRating(
         if (success) {
             Log.i(
                 "StarRatingSvc",
-                "Rating submitted successfully to server for imageId: $imageIdLong, stars: $rating. Awesome frottage!"
+                "Rating submitted successfully to server for imageId: $imageIdLong, stars: $rating. Awesome frottage!",
             )
         } else {
             Log.e(
                 "StarRatingSvc",
-                "Failed to submit rating to server for imageId: $imageIdLong. This is a frottage bummer."
+                "Failed to submit rating to server for imageId: $imageIdLong. This is a frottage bummer.",
             )
-            // Toast is already handled in fetchAndParseImageId for metadata fetch issues, 
+            // Toast is already handled in fetchAndParseImageId for metadata fetch issues,
             // but we might want a specific one for rating submission failure itself.
-            Toast.makeText(context, "Failed to submit rating. Please try again.", Toast.LENGTH_LONG)
+            Toast
+                .makeText(context, "Failed to submit rating. Please try again.", Toast.LENGTH_LONG)
                 .show()
         }
     }

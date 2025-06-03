@@ -8,6 +8,7 @@ import java.time.temporal.ChronoUnit
 
 interface Schedule {
     fun nextUpdateTime(now: ZonedDateTime): ZonedDateTime
+
     fun prevUpdateTime(now: ZonedDateTime): ZonedDateTime
 
     fun zonedDateTimeToStringKey(
@@ -15,22 +16,22 @@ interface Schedule {
         pattern: String = "yyyy-MM-dd_HH-mm-ss",
     ): String = dateTime.format(DateTimeFormatter.ofPattern(pattern))
 
-    fun getActivePeriodTimestampKey(now: ZonedDateTime): String =
-        zonedDateTimeToStringKey(prevUpdateTime(now))
+    fun getActivePeriodTimestampKey(now: ZonedDateTime): String = zonedDateTimeToStringKey(prevUpdateTime(now))
 
     fun imageRequest(
         url: String,
         now: ZonedDateTime,
         context: Context,
-    ): ImageRequest {
-        return ImageRequest
+    ): ImageRequest =
+        ImageRequest
             .Builder(context)
             .data(url)
             .build()
-    }
 }
 
-data class UtcHoursSchedule(val hours: List<Int>) : Schedule {
+data class UtcHoursSchedule(
+    val hours: List<Int>,
+) : Schedule {
     override fun nextUpdateTime(currentTime: ZonedDateTime): ZonedDateTime {
         val nextUpdateHour = hours.firstOrNull { it > currentTime.hour } ?: hours.first()
         val nextUpdateTime = currentTime.withHour(nextUpdateHour).truncatedTo(ChronoUnit.HOURS)
@@ -45,14 +46,14 @@ data class UtcHoursSchedule(val hours: List<Int>) : Schedule {
 }
 
 object EveryMinuteSchedule : Schedule {
-    override fun nextUpdateTime(currentTime: ZonedDateTime): ZonedDateTime =
-        currentTime.plusMinutes(1).truncatedTo(ChronoUnit.MINUTES)
+    override fun nextUpdateTime(currentTime: ZonedDateTime): ZonedDateTime = currentTime.plusMinutes(1).truncatedTo(ChronoUnit.MINUTES)
 
-    override fun prevUpdateTime(currentTime: ZonedDateTime): ZonedDateTime =
-        currentTime.truncatedTo(ChronoUnit.MINUTES)
+    override fun prevUpdateTime(currentTime: ZonedDateTime): ZonedDateTime = currentTime.truncatedTo(ChronoUnit.MINUTES)
 }
 
-data class EveryXSecondsSchedule(val seconds: Int) : Schedule {
+data class EveryXSecondsSchedule(
+    val seconds: Int,
+) : Schedule {
     init {
         // Fail fast if invalid seconds value is provided
         require(seconds > 0) { "seconds must be positive, got $seconds" }

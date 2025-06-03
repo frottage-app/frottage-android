@@ -17,7 +17,10 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 @Composable
-fun FullscreenImageScreen(onClick: () -> Unit) {
+fun FullscreenImageScreen(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     var alreadyClicked by remember { mutableStateOf(false) }
     val wallpaperSource =
@@ -33,21 +36,21 @@ fun FullscreenImageScreen(onClick: () -> Unit) {
             )
         Box(
             modifier =
-            Modifier
-                .fillMaxSize()
-                .clickable {
-                    if (!alreadyClicked) {
-                        alreadyClicked = true
-                        onClick()
-                    }
-                },
+                modifier
+                    .fillMaxSize()
+                    .clickable {
+                        if (!alreadyClicked) {
+                            alreadyClicked = true
+                            onClick()
+                        }
+                    },
         ) {
             AsyncImage(
                 model = imageRequest,
                 contentDescription = "Current Lock Screen Wallpaper",
                 modifier =
-                Modifier
-                    .fillMaxSize(),
+                    Modifier
+                        .fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
         }

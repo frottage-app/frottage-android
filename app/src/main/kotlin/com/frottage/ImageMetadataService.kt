@@ -19,14 +19,14 @@ object ImageMetadataService {
     suspend fun fetchAndParseImageId(
         context: Context,
         schedule: Schedule,
-        targetKey: String
+        targetKey: String,
     ): String? {
         val now = ZonedDateTime.now(ZoneId.of("UTC"))
         val timestampKey = schedule.getActivePeriodTimestampKey(now)
-        val metadataUrlString = "${frottageStaticBaseUrl}/images_${timestampKey}.json"
+        val metadataUrlString = "$FROTTAGE_STATIC_BASE_URL/images_$timestampKey.json"
         Log.d(
             TAG,
-            "Fetching image metadata from: $metadataUrlString for target: $targetKey. Groovy!"
+            "Fetching image metadata from: $metadataUrlString for target: $targetKey. Groovy!",
         )
 
         return withContext(Dispatchers.IO) {
@@ -50,45 +50,46 @@ object ImageMetadataService {
                             val imageId = targetObject.getLong("image_id").toString()
                             Log.i(
                                 TAG,
-                                "Successfully fetched and parsed image_id: '$imageId' for target: '$targetKey'. Total frottage!"
+                                "Successfully fetched and parsed image_id: '$imageId' for target: '$targetKey'. Total frottage!",
                             )
                             return@withContext imageId
                         } else {
                             Log.w(
                                 TAG,
-                                "Frottage alert: 'image_id' field missing in JSON for target '$targetKey' in $metadataUrlString"
+                                "Frottage alert: 'image_id' field missing in JSON for target '$targetKey' in $metadataUrlString",
                             )
                         }
                     } else {
                         Log.w(
                             TAG,
-                            "Frottage alert: TargetKey '$targetKey' not found in JSON response from $metadataUrlString"
+                            "Frottage alert: TargetKey '$targetKey' not found in JSON response from $metadataUrlString",
                         )
                     }
                 } else {
                     Log.e(
                         TAG,
-                        "Frottage fail: HTTP error ${connection.responseCode} while fetching $metadataUrlString"
+                        "Frottage fail: HTTP error ${connection.responseCode} while fetching $metadataUrlString",
                     )
                 }
             } catch (e: Exception) {
                 Log.e(
                     TAG,
                     "Frottage disaster! Exception fetching or parsing image metadata from $metadataUrlString: ${e.message}",
-                    e
+                    e,
                 )
             } finally {
                 connection?.disconnect()
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    context,
-                    "Frottage hiccup: Could not load image details for rating.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast
+                    .makeText(
+                        context,
+                        "Frottage hiccup: Could not load image details for rating.",
+                        Toast.LENGTH_LONG,
+                    ).show()
             }
             return@withContext null
         }
     }
-} 
+}

@@ -8,7 +8,11 @@ object RatingPersistence {
     private const val PREFS_NAME = "FrottageImageRatingsPrefs"
     private const val TAG = "RatingPersistence"
 
-    fun saveRating(context: Context, imageUniqueId: String, rating: Int) {
+    fun saveRating(
+        context: Context,
+        imageUniqueId: String,
+        rating: Int,
+    ) {
         if (imageUniqueId.isBlank()) {
             Log.w(TAG, "Attempted to save rating with a blank image ID. That's a frottage no-go!")
             return
@@ -24,7 +28,10 @@ object RatingPersistence {
         }
     }
 
-    fun loadRating(context: Context, imageUniqueId: String): Int {
+    fun loadRating(
+        context: Context,
+        imageUniqueId: String,
+    ): Int {
         if (imageUniqueId.isBlank()) {
             Log.w(TAG, "Trying to load a rating with a blank image ID? That's not very frottage of you.")
             return 0

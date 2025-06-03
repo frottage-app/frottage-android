@@ -2,7 +2,15 @@ package com.frottage
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker.Result
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Duration
@@ -22,11 +30,11 @@ fun scheduleNextUpdate(context: Context) {
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             // when constraint is enabled, it triggers only when connected to wifi...
             .setConstraints(
-                    Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build()
-            )
-            .setBackoffCriteria(
+                Constraints
+                    .Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build(),
+            ).setBackoffCriteria(
                 BackoffPolicy.EXPONENTIAL,
                 10,
                 TimeUnit.SECONDS,

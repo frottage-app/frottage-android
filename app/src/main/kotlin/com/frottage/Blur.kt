@@ -26,7 +26,11 @@ import android.renderscript.ScriptIntrinsicBlur
  * @param targetRadius Desired blur radius (can be > 25.0f)
  * @return Blurred bitmap
  */
-fun blurBitmap(context: Context, bitmap: Bitmap, targetRadius: Float): Bitmap {
+fun blurBitmap(
+    context: Context,
+    bitmap: Bitmap,
+    targetRadius: Float,
+): Bitmap {
     // Maximum radius allowed by RenderScript's ScriptIntrinsicBlur
     val maxPassRadius = 25.0f
     // Track the current effective radius as we compound multiple passes
@@ -40,7 +44,7 @@ fun blurBitmap(context: Context, bitmap: Bitmap, targetRadius: Float): Bitmap {
     // Each pass compounds with previous passes according to: new_radius = sqrt(current² + pass²)
     while (currentRadius < targetRadius) {
         outputBitmap =
-                Bitmap.createBitmap(currentBitmap.width, currentBitmap.height, currentBitmap.config)
+            Bitmap.createBitmap(currentBitmap.width, currentBitmap.height, currentBitmap.config)
         val inputAllocation = Allocation.createFromBitmap(rs, currentBitmap)
         val outputAllocation = Allocation.createFromBitmap(rs, outputBitmap)
         val blurScript = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
@@ -64,7 +68,7 @@ fun blurBitmap(context: Context, bitmap: Bitmap, targetRadius: Float): Bitmap {
         // Calculate the new effective radius using the compound effect formula
         // sqrt(current_radius² + pass_radius²)
         currentRadius =
-                kotlin.math.sqrt(currentRadius * currentRadius + maxPassRadius * maxPassRadius)
+            kotlin.math.sqrt(currentRadius * currentRadius + maxPassRadius * maxPassRadius)
     }
 
     rs.destroy()
