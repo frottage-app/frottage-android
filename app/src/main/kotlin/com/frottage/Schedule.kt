@@ -20,12 +20,14 @@ interface Schedule {
 
     fun imageRequest(
         url: String,
-        now: ZonedDateTime,
         context: Context,
+        timestampKey: String,
     ): ImageRequest =
         ImageRequest
             .Builder(context)
             .data(url)
+            .diskCacheKey(timestampKey)
+            .memoryCacheKey(timestampKey)
             .build()
 }
 

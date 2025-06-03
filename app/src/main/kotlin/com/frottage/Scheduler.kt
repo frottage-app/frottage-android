@@ -64,7 +64,11 @@ class WallpaperWorker(
     override suspend fun doWork(): Result =
         withContext(Dispatchers.IO) {
             try {
-                WallpaperSetter.setWallpaper(applicationContext)
+                // Calculate activeTimestampKey for the worker
+                val now = ZonedDateTime.now(ZoneId.of("UTC"))
+                val activeTimestampKey = SettingsManager.currentWallpaperSource.schedule.getActivePeriodTimestampKey(now)
+
+                WallpaperSetter.setWallpaper(applicationContext, activeTimestampKey) // Pass key
                 scheduleNextUpdate(applicationContext)
                 Result.success()
             } catch (e: Exception) {

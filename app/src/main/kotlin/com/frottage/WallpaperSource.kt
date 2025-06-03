@@ -2,18 +2,15 @@ package com.frottage
 
 import android.content.Context
 import android.content.res.Configuration
-import java.time.ZoneId
-import java.time.ZonedDateTime
 
 data class WallpaperSource(
     val schedule: Schedule,
-    val lockScreen: ScreenSetting?,
-    val homeScreen: ScreenSetting?,
+    val imageSetting: ScreenSetting,
+    val supportsFrottageRatingSystem: Boolean,
 )
 
 data class ScreenSetting(
-    val url: (Context) -> String,
-    val blurred: (Context) -> Boolean,
+    val url: (context: Context, timestampKey: String) -> String,
 )
 
 fun isTablet(context: Context): Boolean {
@@ -42,52 +39,27 @@ fun getFrottageTargetKey(context: Context): String =
         "mobile"
     }
 
-fun getFrottageUrlForActivePeriod(
-    context: Context,
-    schedule: Schedule,
-): String {
-    val targetKey = getFrottageTargetKey(context)
-    val now = ZonedDateTime.now(ZoneId.of("UTC"))
-    val timestampKey = schedule.getActivePeriodTimestampKey(now)
-    return "$FROTTAGE_STATIC_BASE_URL/wallpaper-$targetKey-$timestampKey.jpg"
-}
-
-val frottageSchedule = UtcHoursSchedule(listOf(1, 7, 13, 19))
 val frottageWallpaperSource =
     WallpaperSource(
-        schedule = frottageSchedule,
-        lockScreen =
+        schedule = UtcHoursSchedule(listOf(1, 7, 13, 19)),
+        imageSetting =
             ScreenSetting(
-                url = { context -> getFrottageUrlForActivePeriod(context, frottageSchedule) },
-                blurred = { _ -> false },
+                url = { context, timestampKey ->
+                    val targetKey = getFrottageTargetKey(context)
+                    "$FROTTAGE_STATIC_BASE_URL/wallpaper-$targetKey-$timestampKey.jpg"
+                },
             ),
-        homeScreen =
-            ScreenSetting(
-                url = { context -> getFrottageUrlForActivePeriod(context, frottageSchedule) },
-                blurred = { context -> SettingsManager.getHomeScreenBlur(context) },
-            ),
+        supportsFrottageRatingSystem = true,
     )
 
-val unsplashSchedule = EveryXSecondsSchedule(15)
 val unsplashWallpaperSource =
     WallpaperSource(
-        schedule = unsplashSchedule,
-        lockScreen =
+        schedule = EveryXSecondsSchedule(15),
+        imageSetting =
             ScreenSetting(
-                url = { context ->
-                    val timestampKey =
-                        unsplashSchedule.getActivePeriodTimestampKey(ZonedDateTime.now(ZoneId.of("UTC")))
-                    "https://unsplash.it/1080/2400/?random&timestamp=$timestampKey"
+                url = { _, _ ->
+                    "https://unsplash.it/1080/2400/?random"
                 },
-                blurred = { _ -> false },
             ),
-        homeScreen =
-            ScreenSetting(
-                url = { context ->
-                    val timestampKey =
-                        unsplashSchedule.getActivePeriodTimestampKey(ZonedDateTime.now(ZoneId.of("UTC")))
-                    "https://unsplash.it/1080/2400/?random&timestamp=$timestampKey"
-                },
-                blurred = { context -> SettingsManager.getHomeScreenBlur(context) },
-            ),
+        supportsFrottageRatingSystem = false,
     )

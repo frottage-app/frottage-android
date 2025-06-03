@@ -20,6 +20,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +53,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,9 +65,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.work.Configuration
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -91,7 +92,11 @@ import java.time.ZonedDateTime
 class MainActivity :
     ComponentActivity(),
     Configuration.Provider {
-    private val updateTrigger = MutableStateFlow(0)
+    @Suppress("ktlint:standard:backing-property-naming")
+    private val _updateTriggerFromWorkManager = MutableStateFlow(0)
+    private val manualSetWallpaperWorkName = "manual_set_wallpaper_work_tag"
+
+    private val viewModel: MainActivityViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -108,7 +113,24 @@ class MainActivity :
 
         setContent {
             val navController = rememberNavController()
-            val triggerUpdate by updateTrigger.collectAsState()
+
+            // Collect states from ViewModel
+            val currentTimestampKey by viewModel.currentTimestampKey.collectAsState()
+            val currentlyDisplayedImageId by viewModel.currentlyDisplayedImageId.collectAsState()
+            val displayedRating by viewModel.displayedRating.collectAsState()
+            val isRatingEnabled by viewModel.isRatingEnabled.collectAsState()
+            val imageRequestForPreview by viewModel.imageRequestForPreview.collectAsState()
+
+            // Effect to react to WorkManager updates and trigger ViewModel refresh
+            LaunchedEffect(Unit) {
+                // Observe WorkManager updates once
+                _updateTriggerFromWorkManager.collect {
+                    // This value itself isn't directly used by ViewModel's internal trigger,
+                    // but its change signifies a need to potentially re-evaluate.
+                    Log.d("MainActivity", "WorkManager update detected, forcing ViewModel refresh.")
+                    viewModel.forceUIRefresh()
+                }
+            }
 
             AppTheme {
                 Surface(
@@ -117,6 +139,32 @@ class MainActivity :
                 ) {
                     NavHost(navController = navController, startDestination = "wallpaper") {
                         composable("wallpaper") {
+                            val context = LocalContext.current
+                            // val workManager = WorkManager.getInstance(context) // No longer needed for manual set
+
+                            // Observe the WorkInfo for the manual set wallpaper work -- REMOVE THIS
+                            // val manualSetWorkInfoList: List<WorkInfo> by workManager
+                            //     .getWorkInfosForUniqueWorkLiveData(manualSetWallpaperWorkName)
+                            //     .asFlow()
+                            //     .collectAsStateWithLifecycle(initialValue = emptyList())
+                            // val actualWorkInfo: WorkInfo? = manualSetWorkInfoList.firstOrNull()
+
+                            // Observe ViewModel state for manual set operation
+                            val isManualSetInProgress by viewModel.isManualSetInProgress.collectAsState()
+                            val manualSetResultMessage by viewModel.manualSetResultMessage.collectAsState()
+
+                            LaunchedEffect(manualSetResultMessage) {
+                                manualSetResultMessage?.let {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            it,
+                                            if (it.startsWith("Frottage fail")) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+                                        ).show()
+                                    viewModel.clearManualSetResultMessage() // Clear after showing
+                                }
+                            }
+
                             Column(
                                 modifier =
                                     Modifier
@@ -128,97 +176,26 @@ class MainActivity :
                                         ),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                val contextForRating = LocalContext.current
-                                val scope = rememberCoroutineScope()
-                                var currentImageUrl by remember { mutableStateOf<String?>(null) }
-                                var currentImageUniqueId by remember { mutableStateOf<String?>(null) }
-
                                 Preview(
                                     navController = navController,
-                                    triggerUpdate = triggerUpdate,
-                                    onImageUrlChange = { url -> currentImageUrl = url },
-                                    onImageUniqueIdChange = { id -> currentImageUniqueId = id },
+                                    imageRequest = imageRequestForPreview,
+                                    timestampKeyForFullscreen = currentTimestampKey,
                                     modifier = Modifier.weight(1f),
                                 )
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                var currentRating by remember { mutableIntStateOf(0) }
-
-                                LaunchedEffect(currentImageUniqueId, contextForRating) {
-                                    currentImageUniqueId?.let { imageId ->
-                                        if (imageId.isNotBlank()) {
-                                            currentRating =
-                                                RatingPersistence.loadRating(
-                                                    contextForRating,
-                                                    imageId,
-                                                )
-                                            Log.d(
-                                                "MainActivity",
-                                                "Attempted to load rating for ID '$imageId', got $currentRating. Groovy!",
-                                            )
-                                        } else {
-                                            currentRating = 0 // Reset if ID is blank
-                                            Log.d(
-                                                "MainActivity",
-                                                "Image ID is blank. Setting rating to 0. Not very frottage.",
-                                            )
-                                        }
-                                    } ?: run {
-                                        currentRating = 0 // Reset if ID is null
-                                        Log.d(
-                                            "MainActivity",
-                                            "Image ID is null. Setting rating to 0. A blank canvas for frottage!",
-                                        )
-                                    }
-                                }
-
                                 StarRatingBar(
-                                    rating = currentRating,
+                                    rating = displayedRating,
+                                    enabled = isRatingEnabled,
                                     onRatingChange = { newRating ->
-                                        currentRating = newRating // Update UI immediately
-                                        val targetKeyVal = getFrottageTargetKey(contextForRating)
-                                        currentImageUniqueId?.let { imageId ->
-                                            if (imageId.isNotBlank()) {
-                                                scope.launch {
-                                                    RatingPersistence.saveRating(
-                                                        contextForRating,
-                                                        imageId,
-                                                        newRating,
-                                                    )
-                                                    submitRating(
-                                                        contextForRating,
-                                                        newRating,
-                                                        imageId,
-                                                    )
-                                                }
-                                            } else {
-                                                Log.w(
-                                                    "MainActivity",
-                                                    "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is blank!",
-                                                )
-                                                scope.launch {
-                                                    // Attempt backend submission even if local save key is bad
-                                                    submitRating(
-                                                        contextForRating,
-                                                        newRating,
-                                                        targetKeyVal,
-                                                    )
-                                                }
-                                            }
-                                        } ?: run {
+                                        if (isRatingEnabled && currentlyDisplayedImageId != null) {
+                                            viewModel.handleRatingChange(newRating, currentlyDisplayedImageId, context)
+                                        } else {
                                             Log.w(
                                                 "MainActivity",
-                                                "Frottage Alert: Cannot save rating locally, imageUniqueId (image_id) is null!",
+                                                "StarRatingBar onRatingChange: Rating not enabled or imageId is null. isRatingEnabled: $isRatingEnabled, imageId: $currentlyDisplayedImageId",
                                             )
-                                            scope.launch {
-                                                // Attempt backend submission even if local save key is bad
-                                                submitRating(
-                                                    contextForRating,
-                                                    newRating,
-                                                    targetKeyVal,
-                                                )
-                                            }
                                         }
                                     },
                                 )
@@ -287,20 +264,12 @@ class MainActivity :
                                                 ),
                                         )
                                         NextUpdateTime(
-                                            key = triggerUpdate,
                                             navController = navController,
-                                            modifier =
-                                                Modifier.padding(
-                                                    start = 12.dp,
-                                                ),
+                                            key = currentTimestampKey,
+                                            modifier = Modifier.padding(start = 12.dp),
                                         )
-
                                         ScheduleSwitch(
-                                            triggerUpdate,
-                                            modifier =
-                                                Modifier.padding(
-                                                    start = 12.dp,
-                                                ),
+                                            modifier = Modifier.padding(start = 12.dp),
                                         )
                                     }
                                 }
@@ -313,24 +282,61 @@ class MainActivity :
                                     modifier = Modifier.width(300.dp),
                                 ) {
                                     SetWallpaperButton(
-                                        modifier =
-                                            Modifier
-                                                .weight(1f)
-                                                .fillMaxWidth(),
+                                        currentTimestampKey = currentTimestampKey,
+                                        // workInfo = actualWorkInfo, // No longer pass WorkInfo
+                                        isLoading = isManualSetInProgress, // Pass ViewModel's loading state
+                                        onClick = {
+                                            if (currentTimestampKey != null) {
+                                                viewModel.manuallySetCurrentWallpaper() // Call ViewModel function
+                                            } else {
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "Cannot set wallpaper: timestamp key is missing",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                Log.w("SetWallpaperButton", "currentTimestampKey is null, cannot trigger manual set")
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
                                     )
-                                    currentImageUrl?.let { imageUrl ->
+                                    val imageUrlForSave =
+                                        currentTimestampKey?.let { tsKey ->
+                                            SettingsManager.currentWallpaperSource.imageSetting.url
+                                                .invoke(context, tsKey)
+                                        }
+
+                                    if (imageUrlForSave != null) {
                                         SaveWallpaperButton(
-                                            imageUrl = imageUrl,
-                                            imageUniqueId = currentImageUniqueId,
+                                            imageUrl = imageUrlForSave,
+                                            imageUniqueId = currentlyDisplayedImageId,
+                                        )
+                                    } else {
+                                        Log.w(
+                                            "MainActivity",
+                                            "SaveWallpaperButton: imageUrlForSave is null because currentTimestampKey is null.",
                                         )
                                     }
                                 }
                             }
                         }
-                        composable("fullscreen") {
-                            FullscreenImageScreen(onClick = {
-                                navController.popBackStack()
-                            })
+                        composable(
+                            route = "fullscreen/{timestampKey}",
+                            arguments =
+                                listOf(
+                                    navArgument("timestampKey") {
+                                        type = NavType.StringType
+                                        nullable = true
+                                    },
+                                ),
+                        ) { backStackEntry ->
+                            val timestampKey = backStackEntry.arguments?.getString("timestampKey")
+                            FullscreenImageScreen(
+                                timestampKey = timestampKey,
+                                onClick = {
+                                    navController.popBackStack()
+                                },
+                            )
                         }
                         composable("logscreen") {
                             LogFileView(onClick = {
@@ -344,34 +350,25 @@ class MainActivity :
     }
 
     @Composable
-    private fun SetWallpaperButton(modifier: Modifier = Modifier) {
-        val context = LocalContext.current
-        val scope = rememberCoroutineScope()
-        var isLoading by remember { mutableStateOf(false) }
+    private fun SetWallpaperButton(
+        currentTimestampKey: String?, // Keep this to enable/disable button
+        // workInfo: WorkInfo?, // Removed
+        isLoading: Boolean, // Added
+        onClick: () -> Unit, // Added
+        // viewModel: MainActivityViewModel, // No longer needed directly here if onClick calls ViewModel
+        modifier: Modifier = Modifier,
+    ) {
+        Log.d("SetWallpaperButton", "Recomposing. isLoading (from ViewModel): $isLoading, currentTimestampKey: $currentTimestampKey")
+
+        // val context = LocalContext.current // Context for toast is now handled by the LaunchedEffect observing ViewModel
+        // val isLoading = workInfo?.state == WorkInfo.State.RUNNING || workInfo?.state == WorkInfo.State.ENQUEUED // isLoading now passed as parameter
+
+        // Removed local state and LaunchedEffects for workInfo, showSuccessToast, showFailureToast
 
         Button(
             modifier = modifier,
-            onClick = {
-                logToFile(context, "Set Wallpaper button pressed. Initiating frottage!")
-                scope.launch {
-                    isLoading = true
-                    try {
-                        WallpaperSetter.setWallpaper(context)
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast
-                                .makeText(
-                                    context,
-                                    "Error: ${e.message}",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                        }
-                    } finally {
-                        isLoading = false
-                    }
-                }
-            },
-            enabled = !isLoading,
+            onClick = onClick, // Use passed onClick
+            enabled = !isLoading && currentTimestampKey != null,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -403,49 +400,20 @@ class MainActivity :
     @Composable
     private fun Preview(
         navController: NavHostController,
-        triggerUpdate: Int,
-        onImageUrlChange: (String?) -> Unit,
-        onImageUniqueIdChange: (String?) -> Unit,
+        imageRequest: ImageRequest?,
+        timestampKeyForFullscreen: String?,
         modifier: Modifier = Modifier,
     ) {
-        key(triggerUpdate) {
+        key(imageRequest) {
+            Log.d(
+                "MainActivity",
+                "[DEBUG] Preview Composable: Received imageRequest: $imageRequest, timestampKeyForFullscreen: $timestampKeyForFullscreen",
+            )
             val context = LocalContext.current
-            val wallpaperSource =
-                SettingsManager.currentWallpaperSource
 
-            LaunchedEffect(wallpaperSource, context, onImageUrlChange, onImageUniqueIdChange) {
-                val imageUrl = wallpaperSource.lockScreen?.url(context)
-                onImageUrlChange(imageUrl)
-
-                if (imageUrl != null) {
-                    val currentTargetKey = getFrottageTargetKey(context)
-                    Log.d(
-                        "MainActivity.Preview",
-                        "Fetching image ID for targetKey: $currentTargetKey",
-                    )
-                    val imageId =
-                        ImageMetadataService.fetchAndParseImageId(
-                            context,
-                            wallpaperSource.schedule,
-                            currentTargetKey,
-                        )
-                    Log.d("MainActivity.Preview", "Image ID fetched: $imageId")
-                    onImageUniqueIdChange(imageId)
-                } else {
-                    Log.d("MainActivity.Preview", "Image URL is null, setting imageId to null")
-                    onImageUniqueIdChange(null)
-                }
-            }
-
-            wallpaperSource.lockScreen?.let {
-                val lockScreenUrl =
-                    it.url(context)
-                val imageRequest =
-                    wallpaperSource.schedule.imageRequest(
-                        lockScreenUrl,
-                        ZonedDateTime.now(ZoneId.of("UTC")),
-                        context,
-                    )
+            @Suppress("SENSELESS_COMPARISON")
+            if (imageRequest != null) {
+                Log.d("MainActivity", "[DEBUG] Preview Composable: imageRequest is NOT NULL, attempting to load AsyncImage.")
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = "Current Lock Screen Wallpaper",
@@ -453,52 +421,18 @@ class MainActivity :
                         modifier
                             .clip(shape = RoundedCornerShape(16.dp))
                             .clickable(onClick = {
-                                navController.navigate("fullscreen")
+                                if (timestampKeyForFullscreen != null) {
+                                    navController.navigate("fullscreen/$timestampKeyForFullscreen")
+                                } else {
+                                    Log.w("Preview", "timestampKeyForFullscreen is null, cannot navigate to fullscreen.")
+                                }
                             }),
                     contentScale = ContentScale.Fit,
                 )
+            } else {
+                Spacer(modifier = modifier.clip(shape = RoundedCornerShape(16.dp)))
+                Log.d("Preview", "imageRequest is null, showing Spacer.")
             }
-        }
-    }
-
-    @Composable
-    private fun ScheduleSwitch(
-        triggerUpdate: Int,
-        modifier: Modifier = Modifier,
-    ) {
-        val context = LocalContext.current
-        var isScheduleEnabled by remember {
-            mutableStateOf(
-                SettingsManager.getScheduleIsEnabled(context),
-            )
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier =
-                modifier
-                    .fillMaxWidth(),
-        ) {
-            Text("Enable schedule")
-            Switch(
-                checked = isScheduleEnabled,
-                onCheckedChange = { enabled ->
-                    isScheduleEnabled = enabled
-                    SettingsManager.setScheduleIsEnabled(
-                        context,
-                        isScheduleEnabled,
-                    )
-                    if (enabled) {
-                        logToFile(context, "Schedule enabled. Let the frottage flow!")
-                        requestBatteryOptimizationExemption()
-                        scheduleNextUpdate(context)
-                    } else {
-                        logToFile(context, "Schedule disabled. Frottage paused for now.")
-                        cancelUpdateSchedule(context)
-                    }
-                },
-            )
         }
     }
 
@@ -583,22 +517,6 @@ class MainActivity :
         }
     }
 
-    private fun handleSettingsSaved() {
-        val context = applicationContext
-        if (SettingsManager.getScheduleIsEnabled(context)) {
-            lifecycleScope.launch {
-                try {
-                    WallpaperSetter.setWallpaper(context)
-                    updateTrigger.update { it + 1 }
-                    scheduleNextUpdate(context)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
     private fun requestBatteryOptimizationExemption() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
@@ -620,8 +538,24 @@ class MainActivity :
                 .getWorkInfosByTagFlow("wallpaper_update")
                 .collect { workInfoList ->
                     workInfoList.forEach { workInfo ->
-                        if (workInfo.state == WorkInfo.State.ENQUEUED) {
-                            updateTrigger.update { it + 1 }
+                        if (SettingsManager.getScheduleIsEnabled(applicationContext)) {
+                            if (workInfo.state == WorkInfo.State.ENQUEUED || workInfo.state == WorkInfo.State.RUNNING) {
+                                Log.d(
+                                    "MainActivity",
+                                    "Scheduled wallpaper_update work state changed: ${workInfo.state} AND schedule is ENABLED, triggering UI refresh via ViewModel",
+                                )
+                                _updateTriggerFromWorkManager.update { it + 1 }
+                            } else {
+                                Log.d(
+                                    "MainActivity",
+                                    "Scheduled wallpaper_update work state is ${workInfo.state} but schedule is ENABLED - not triggering an ENQUEUED/RUNNING update.",
+                                )
+                            }
+                        } else {
+                            Log.d(
+                                "MainActivity",
+                                "Scheduled wallpaper_update work state changed: ${workInfo.state} BUT schedule is DISABLED, NOT triggering UI refresh via ViewModel",
+                            )
                         }
                     }
                 }
@@ -642,7 +576,6 @@ class MainActivity :
         imageUniqueId: String?,
     ) {
         val context = LocalContext.current
-        val scope = rememberCoroutineScope()
         var isLoading by remember { mutableStateOf(false) }
 
         val permissionLauncher =
@@ -651,34 +584,31 @@ class MainActivity :
             ) { isGranted: Boolean ->
                 if (isGranted) {
                     Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted after request. Groovy!")
-                    // isLoading is already true from the onClick that launched the permission request
-                    scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                    lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
                 } else {
                     Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied. Not very frottage.")
                     Toast.makeText(context, "Storage permission denied. Cannot save image.", Toast.LENGTH_SHORT).show()
-                    isLoading = false // Reset isLoading if permission is denied by user
+                    isLoading = false
                 }
             }
 
         IconButton(
             onClick = {
-                isLoading = true // Set loading true at the beginning of any save attempt
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // Android 9 (API 28) or older
+                isLoading = true
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     when (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                         PackageManager.PERMISSION_GRANTED -> {
                             Log.d("SaveWallpaper", "Permission already granted for old Android. Groovy!")
-                            scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                            lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
                         }
                         else -> {
                             Log.d("SaveWallpaper", "Requesting permission for old Android.")
-                            // isLoading is already true
                             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         }
                     }
                 } else {
-                    // For Android 10+ (API 29+), MediaStore handles it for app-owned content in public directories
                     Log.d("SaveWallpaper", "Modern Android (API 29+), proceeding with save directly.")
-                    scope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                    lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
                 }
             },
             enabled = !isLoading,
@@ -687,7 +617,7 @@ class MainActivity :
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 Icon(
-                    imageVector = Icons.Filled.Download, // Ensure this import is present
+                    imageVector = Icons.Filled.Download,
                     contentDescription = "Save Wallpaper",
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -695,12 +625,11 @@ class MainActivity :
         }
     }
 
-    // Renamed from saveImageAction and added onComplete lambda parameter
     private suspend fun performSaveOperation(
         context: android.content.Context,
         imageUrl: String,
         imageUniqueId: String?,
-        onComplete: () -> Unit, // Lambda to call in finally block
+        onComplete: () -> Unit,
     ) {
         try {
             val imageLoader = ImageLoader(context)
@@ -708,7 +637,7 @@ class MainActivity :
                 ImageRequest
                     .Builder(context)
                     .data(imageUrl)
-                    .allowHardware(false) // Important for direct bitmap access
+                    .allowHardware(false)
                     .build()
             val result = (imageLoader.execute(request) as? SuccessResult)?.drawable
             val bitmap = (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
@@ -760,6 +689,76 @@ class MainActivity :
             Toast.makeText(context, "Frottage fail! Could not save image: ${e.message}", Toast.LENGTH_SHORT).show()
         } finally {
             onComplete()
+        }
+    }
+
+    @Composable
+    private fun NextUpdateTime(
+        navController: NavHostController,
+        modifier: Modifier = Modifier,
+        key: Any? = null,
+    ) {
+        val context = LocalContext.current
+        var tapCount by remember { mutableIntStateOf(0) }
+
+        val now = ZonedDateTime.now(ZoneId.of("UTC"))
+        val nextUpdateTime = SettingsManager.currentWallpaperSource.schedule.nextUpdateTime(now)
+        val localNextUpdateTime = nextUpdateTime.withZoneSameInstant(ZoneId.systemDefault())
+        val timeFormat =
+            java.time.format.DateTimeFormatter
+                .ofPattern("HH:mm", java.util.Locale.getDefault())
+        val formattedNextUpdateTime = localNextUpdateTime.format(timeFormat)
+
+        Text(
+            text = "Next image: $formattedNextUpdateTime",
+            modifier =
+                modifier.clickable {
+                    tapCount++
+                    if (tapCount >= 7) {
+                        try {
+                            navController.navigate("logscreen")
+                        } catch (e: IllegalStateException) {
+                            Log.e("NextUpdateTime", "Navigation failed, make sure 'logscreen' is a valid destination.", e)
+                        }
+                        tapCount = 0
+                    }
+                },
+        )
+    }
+
+    @Composable
+    private fun ScheduleSwitch(modifier: Modifier = Modifier) {
+        val context = LocalContext.current
+        var isScheduleEnabled by remember {
+            mutableStateOf(
+                SettingsManager.getScheduleIsEnabled(context),
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = modifier.fillMaxWidth(),
+        ) {
+            Text("Enable schedule")
+            androidx.compose.material3.Switch(
+                checked = isScheduleEnabled,
+                onCheckedChange = { enabled ->
+                    isScheduleEnabled = enabled
+                    SettingsManager.setScheduleIsEnabled(
+                        context,
+                        isScheduleEnabled,
+                    )
+                    if (enabled) {
+                        logToFile(context, "Schedule enabled. Let the frottage flow!")
+                        requestBatteryOptimizationExemption()
+                        scheduleNextUpdate(context)
+                    } else {
+                        logToFile(context, "Schedule disabled. Frottage paused for now.")
+                        cancelUpdateSchedule(context)
+                    }
+                },
+            )
         }
     }
 }

@@ -10,19 +10,15 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.time.ZoneId
-import java.time.ZonedDateTime
 
 object ImageMetadataService {
     private const val TAG = "ImageMetadataService"
 
     suspend fun fetchAndParseImageId(
         context: Context,
-        schedule: Schedule,
+        timestampKey: String,
         targetKey: String,
     ): String? {
-        val now = ZonedDateTime.now(ZoneId.of("UTC"))
-        val timestampKey = schedule.getActivePeriodTimestampKey(now)
         val metadataUrlString = "$FROTTAGE_STATIC_BASE_URL/images_$timestampKey.json"
         Log.d(
             TAG,

@@ -16,20 +16,28 @@ fun StarRatingBar(
     onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
     maxStars: Int = 5,
+    enabled: Boolean = true,
 ) {
     Row(modifier = modifier) {
         for (starIndex in 1..maxStars) {
-            IconButton(onClick = { onRatingChange(starIndex) }) {
+            IconButton(
+                onClick = { onRatingChange(starIndex) },
+                enabled = enabled,
+            ) {
                 Icon(
                     imageVector = if (starIndex <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = if (starIndex <= rating) "Filled Star $starIndex" else "Empty Star $starIndex",
                     tint =
-                        if (starIndex <= rating) {
-                            MaterialTheme.colorScheme.primary
+                        if (enabled) {
+                            if (starIndex <= rating) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.5f,
+                                )
+                            }
                         } else {
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = 0.5f,
-                            )
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         },
                 )
             }
