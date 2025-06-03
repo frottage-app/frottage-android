@@ -352,6 +352,7 @@ class MainActivity :
         Button(
             modifier = modifier,
             onClick = {
+                logToFile(context, "Set Wallpaper button pressed. Initiating frottage!")
                 scope.launch {
                     isLoading = true
                     try {
@@ -489,9 +490,11 @@ class MainActivity :
                         isScheduleEnabled,
                     )
                     if (enabled) {
+                        logToFile(context, "Schedule enabled. Let the frottage flow!")
                         requestBatteryOptimizationExemption()
                         scheduleNextUpdate(context)
                     } else {
+                        logToFile(context, "Schedule disabled. Frottage paused for now.")
                         cancelUpdateSchedule(context)
                     }
                 },
