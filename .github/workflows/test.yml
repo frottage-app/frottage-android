@@ -13,33 +13,40 @@ permissions:
   contents: read
 
 env:
-  EARTHLY_TOKEN: ${{ secrets.EARTHLY_TOKEN }}
-  EARTHLY_ORG: ${{ secrets.EARTHLY_ORG }}
-  EARTHLY_SATELLITE: ${{ secrets.EARTHLY_SATELLITE }}
-  EARTHLY_CI: true
-  GITHUB_ACTIONS: true # Better earthly outputs in github actions
+  GITHUB_ACTIONS: true # For tools that might adjust output for GHA
   FORCE_COLOR: 1
+  GRADLE_OPTS: -Dorg.gradle.daemon=false # Ensure Gradle daemon is not used
 
 jobs:
   test:
     name: Test
-    runs-on: ubuntu-22.04 # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Expose EARTHLY_VERSION from devbox.lock
-      run: |
-        # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
-        EARTHLY_VERSION="$(jq -r ".packages[\"earthly@latest\"].version" devbox.lock)"
-        echo "EARTHLY_VERSION=$EARTHLY_VERSION" >> "$GITHUB_ENV"
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
 
-    - name: Install earthly
-      uses: earthly/actions-setup@v1
+    - name: Install devbox
+      uses: jetify-com/devbox-install-action@v0.13.0
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
       with:
-        version: ${{ env.EARTHLY_VERSION }}
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
 
-    - name: Test
-      run: earthly --verbose --allow-privileged --no-output +ci-test
+    - name: Lint code
+      run: |
+        devbox run -- just lint
+
+    - name: Build project
+      run: |
+        devbox run -- ./gradlew assembleDebug

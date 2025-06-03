@@ -45,13 +45,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    # - name: Download ktlint-compose.jar
-    #   run: |
-    #     devbox run -- wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar
-
-    # - name: Lint code
-    #   run: |
-    #     devbox run -- ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
+    - name: Lint Code
+      run: |
+        devbox run -- just lint
 
     - name: Build project
       run: |
@@ -75,9 +71,6 @@ jobs:
         mkdir -p keys
         printf "%s" "$KEYSTORE_BASE64" | base64 --decode > keys/keystore.jks
         printf "%s" "$PLAY_SERVICE_ACCOUNT_JSON" > keys/play-service-account.json
-        ls -l keys
-        cat keys/play-service-account.json
-        file keys/keystore.jks
 
     - name: Deploy to Play Store with Fastlane
       run: |

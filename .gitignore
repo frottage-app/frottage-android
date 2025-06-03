@@ -12,3 +12,4 @@ kls_database.db
 /keys
 /.envrc.local
 /fastlane/report.xml
+ktlint-compose.jar

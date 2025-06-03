@@ -1,5 +1,5 @@
-- after every code change, compile the project using the command `./gradlew assembleDebug`
-- don't create development comments that aren't essential for understanding the final state of the code
+- after every code change, compile the project using the command `just check`
+- run `just fix` to fix linter errors automatically
 
 # Frottage
 - log and error messages should be informal, funny and cool. Use Words like "groovy" and "frottage" often.

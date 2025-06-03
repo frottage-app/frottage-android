@@ -5,20 +5,37 @@ _default:
   @just --list --unsorted
 
 test:
-  gradle testDebug
+  ./gradlew testDebug
 
 test-watch:
-  rg --files build.gradle.kts app | entr -crn gradle testDebug
+  rg --files build.gradle.kts app | entr -crn ./gradlew testDebug
 
 dev:
   rg --files build.gradle.kts app | entr -crn just install
 
 fix:
-  ktlint --format
+  @echo "Groovy! Fixing and Formatting your awesome Frottage Kotlin code (Compose rules included)..."
+  @if [ ! -f ktlint-compose.jar ]; then \
+    echo "ktlint-compose.jar not found, downloading it for Compose-specific fixing!"; \
+    wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar; \
+  fi
+  ktlint -R ktlint-compose.jar --format "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
+
+lint:
+  @echo "Groovy! Linting your awesome Frottage code..."
+  @if [ ! -f ktlint-compose.jar ]; then \
+    echo "ktlint-compose.jar not found, downloading it for some frottage action!"; \
+    wget https://github.com/mrmans0n/compose-rules/releases/download/v0.4.16/ktlint-compose-0.4.16-all.jar -O ktlint-compose.jar; \
+  fi
+  ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
+
+check: lint
+  @echo "Groovy! Building your awesome Frottage debug APK after linting..."
+  ./gradlew assembleDebug
 
 # run ci checks locally
 ci:
-  (git ls-files && git ls-files --others --exclude-standard) | entr -cnr earthly +ci-test
+  (git ls-files && git ls-files --others --exclude-standard) | entr -cnr just check
 
 # Build APK for specified variant (debug/release)
 apk variant="debug":
