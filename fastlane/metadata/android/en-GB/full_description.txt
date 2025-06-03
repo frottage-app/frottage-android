@@ -1,15 +1,11 @@
-Tired of the same old background? Frottage changes that. <b>Fresh, unique wallpapers</b>, delivered automatically. Your screen, always interesting.
+This is an art project by some friends, shared with fellow enthusiasts.
 
-Here's the cool part:
+It only does one thing well: give you groovy wallpapers every day.
 
-🌟 <b>Always Something New</b>
-Get a steady stream of <b>eye-catching designs</b> – no effort needed. Keeps your screen lively. Stop hunting for images!
+*   No fuss, no ads, just a minimal and simple app.
+*   Easily set wallpapers manually or schedule daily updates.
+*   Save your favorite images.
 
-🔄 <b>Set It & Forget It</b>
-Quick setup, and Frottage handles the rest. <b>Smooth, automatic updates</b> all day. Your device always looks current.
-
-🎨 <b>Make It Yours</b>
-<ul><li><b>Lock, Home, or Both:</b> You choose! Works great everywhere.</li><li><b>Optional Home Screen Blur:</b> Soften your Home Screen look. <b>Icons pop</b>, easy on the eyes.</li></ul>
-
-📱 <b>Fits Your Vibe</b>
-<b>Smart styling</b> for your phone or tablet. Matches your light/dark mode. It just works.
+If you have any kind words, please leave us a review.
+Please report bugs and feature requests on GitHub: https://github.com/frottage-app/frottage-android
+Or just send a mail to playstore@felx.me
