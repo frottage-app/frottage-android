@@ -50,6 +50,9 @@ install variant="debug": (apk variant)
   adb install app/build/outputs/apk/{{variant}}/frottage-{{variant}}.apk || (adb uninstall com.frottage && adb install app/build/outputs/apk/{{variant}}/frottage-{{variant}}.apk)
   adb shell monkey -p com.frottage -c android.intent.category.LAUNCHER 1
 
+uninstall:
+  adb uninstall com.frottage
+
 # Run app for specified variant (debug/release)
 run variant="debug": (install variant)
   scripts/logcat com.frottage
