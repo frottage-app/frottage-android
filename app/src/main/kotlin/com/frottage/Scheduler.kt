@@ -22,12 +22,12 @@ fun scheduleNextUpdate(context: Context) {
     val now = ZonedDateTime.now(ZoneId.of("UTC"))
     val nextUpdateTime = SettingsManager.currentWallpaperSource.schedule.nextUpdateTime(now)
 
-    val delay = Duration.between(now, nextUpdateTime).toMillis()
+    val notBeforeDelayMillis = Duration.between(now, nextUpdateTime).toMillis()
 
     val wallpaperWorkRequest =
         OneTimeWorkRequestBuilder<WallpaperWorker>()
             .addTag("wallpaper_update")
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .setInitialDelay(notBeforeDelayMillis, TimeUnit.MILLISECONDS)
             // when constraint is enabled, it triggers only when connected to wifi...
             .setConstraints(
                 Constraints
