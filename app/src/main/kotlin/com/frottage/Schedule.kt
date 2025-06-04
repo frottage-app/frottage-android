@@ -41,9 +41,17 @@ data class UtcHoursSchedule(
     }
 
     override fun prevUpdateTime(currentTime: ZonedDateTime): ZonedDateTime {
-        val prevUpdateHour = hours.lastOrNull { it < currentTime.hour } ?: hours.last()
-        val prevUpdateTime = currentTime.withHour(prevUpdateHour).truncatedTo(ChronoUnit.HOURS)
-        return if (prevUpdateHour < currentTime.hour) prevUpdateTime else prevUpdateTime.minusDays(1)
+        // Find the latest scheduled hour on the current day that is less than or equal to the current hour
+        val currentDayPrevHour = hours.lastOrNull { it <= currentTime.hour }
+
+        return if (currentDayPrevHour != null) {
+            // A scheduled hour for the current slot was found on the current day
+            currentTime.withHour(currentDayPrevHour).truncatedTo(ChronoUnit.HOURS)
+        } else {
+            // Current time is before the first scheduled hour of today.
+            // So, the previous update time was the last scheduled hour of the previous day.
+            currentTime.minusDays(1).withHour(hours.last()).truncatedTo(ChronoUnit.HOURS)
+        }
     }
 }
 

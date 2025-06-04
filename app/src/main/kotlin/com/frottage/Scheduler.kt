@@ -66,7 +66,19 @@ class WallpaperWorker(
             try {
                 // Calculate activeTimestampKey for the worker
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
-                val activeTimestampKey = SettingsManager.currentWallpaperSource.schedule.getActivePeriodTimestampKey(now)
+                logToFile(applicationContext, "[WorkerDebug] Worker started. Current UTC time (now): $now")
+
+                val schedule = SettingsManager.currentWallpaperSource.schedule
+                logToFile(applicationContext, "[WorkerDebug] Using schedule type: ${schedule::class.simpleName}")
+
+                val previousUpdateTime = schedule.prevUpdateTime(now)
+                logToFile(applicationContext, "[WorkerDebug] Calculated prevUpdateTime(now): $previousUpdateTime")
+
+                val activeTimestampKey = schedule.getActivePeriodTimestampKey(now) // This internally calls prevUpdateTime(now) again
+                logToFile(
+                    applicationContext,
+                    "[WorkerDebug] Final activeTimestampKey from getActivePeriodTimestampKey(now): $activeTimestampKey",
+                )
 
                 WallpaperSetter.setWallpaper(applicationContext, activeTimestampKey) // Pass key
                 scheduleNextUpdate(applicationContext)

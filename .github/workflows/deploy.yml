@@ -44,13 +44,18 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Lint Code
+    - name: Build
+      run: |
+        devbox run -- just apk
+
+    - name: Test
+      run: |
+        devbox run -- just test
+
+    - name: Lint
       run: |
         devbox run -- just lint
 
-    - name: Build project
-      run: |
-        devbox run -- ./gradlew assembleDebug
 
     - name: Expose github environment as shell variables
       # https://stackoverflow.com/a/75789640/793909

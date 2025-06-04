@@ -42,10 +42,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
 
-    - name: Lint code
+    - name: Build
+      run: |
+        devbox run -- just apk
+
+    - name: Test
+      run: |
+        devbox run -- just test
+
+    - name: Lint
       run: |
         devbox run -- just lint
 
-    - name: Build project
-      run: |
-        devbox run -- ./gradlew assembleDebug

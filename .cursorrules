@@ -1,6 +1,6 @@
-- after every code change, compile the project using the command `just check`
+- after every code change, compile, test and lint the project using the command `just check`
 - run `just fix` to fix linter errors automatically
+- organize the functions in a file in a top-down design, so that the reader sees high-level code at the top and low-level code at the bottom
 
 # Frottage
-- log and error messages should be informal, funny and cool. Use Words like "groovy" and "frottage" often.
-- Be overly excited about this Frottage project.
+- log and error messages produced by the code should be informal, funny, cool and use Words like "groovy" and "frottage" often.
