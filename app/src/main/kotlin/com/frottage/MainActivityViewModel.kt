@@ -53,42 +53,21 @@ class MainActivityViewModel(
             _updateTrigger.collect { triggerValue ->
                 Log.d(
                     "ViewModel",
-                    "Effect 0 (ViewModel): triggerUpdate: $triggerValue. Current key before logic: ${_currentTimestampKey.value}",
+                    "Effect 0 (ViewModel): triggerUpdate: $triggerValue. Recalculating currentTimestampKey for live preview.",
                 )
-                val context = getApplication<Application>().applicationContext
-                val scheduleIsEnabled = SettingsManager.getScheduleIsEnabled(context)
-
                 // Hoisted common calculation
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
                 val currentScheduleDetails = SettingsManager.currentWallpaperSource.schedule
                 val timestampKeyFromTime = currentScheduleDetails.getActivePeriodTimestampKey(now)
 
-                if (scheduleIsEnabled) {
-                    if (_currentTimestampKey.value != timestampKeyFromTime) {
-                        _currentTimestampKey.value = timestampKeyFromTime
-                        Log.d("ViewModel", "Effect 0 (ViewModel): Schedule ENABLED. currentTimestampKey updated to $timestampKeyFromTime")
-                    } else {
-                        Log.d(
-                            "ViewModel",
-                            "Effect 0 (ViewModel): Schedule ENABLED. currentTimestampKey is already $timestampKeyFromTime, no change.",
-                        )
-                    }
-                } else { // Schedule is DISABLED
-                    if (_currentTimestampKey.value == null) {
-                        // If key is null (e.g., first app start with schedule disabled),
-                        // set an initial key. For Unsplash, this will be time-based for "now".
-                        _currentTimestampKey.value = timestampKeyFromTime
-                        Log.d(
-                            "ViewModel",
-                            "Effect 0 (ViewModel): Schedule DISABLED and key was null. Initialized currentTimestampKey to $timestampKeyFromTime",
-                        )
-                    } else {
-                        // Key already exists, and schedule is disabled. Do not change it.
-                        Log.d(
-                            "ViewModel",
-                            "Effect 0 (ViewModel): Schedule DISABLED. currentTimestampKey remains ${_currentTimestampKey.value}. NO CHANGE.",
-                        )
-                    }
+                if (_currentTimestampKey.value != timestampKeyFromTime) {
+                    _currentTimestampKey.value = timestampKeyFromTime
+                    Log.d("ViewModel", "Effect 0 (ViewModel): Live preview. currentTimestampKey updated to $timestampKeyFromTime. Groovy!")
+                } else {
+                    Log.d(
+                        "ViewModel",
+                        "Effect 0 (ViewModel): Live preview. currentTimestampKey is already $timestampKeyFromTime, no change needed. Still groovy.",
+                    )
                 }
             }
         }

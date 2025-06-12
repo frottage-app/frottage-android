@@ -1,17 +1,12 @@
 package com.frottage
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.os.PowerManager
-import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -53,6 +48,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,8 +58,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -71,29 +65,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.work.Configuration
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.frottage.theme.AppTheme
 import com.frottage.ui.composables.NextUpdateTime
 import com.frottage.ui.composables.StarRatingBar
 import com.frottage.ui.screens.FullscreenImageScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class MainActivity :
     ComponentActivity(),
     Configuration.Provider {
-    @Suppress("ktlint:standard:backing-property-naming")
-    private val _updateTriggerFromWorkManager = MutableStateFlow(0)
     private val manualSetWallpaperWorkName = "manual_set_wallpaper_work_tag"
 
     private val viewModel: MainActivityViewModel by viewModels()
@@ -109,8 +93,6 @@ class MainActivity :
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
 
-        observeWallpaperUpdates()
-
         setContent {
             val navController = rememberNavController()
 
@@ -120,17 +102,6 @@ class MainActivity :
             val displayedRating by viewModel.displayedRating.collectAsState()
             val isRatingEnabled by viewModel.isRatingEnabled.collectAsState()
             val imageRequestForPreview by viewModel.imageRequestForPreview.collectAsState()
-
-            // Effect to react to WorkManager updates and trigger ViewModel refresh
-            LaunchedEffect(Unit) {
-                // Observe WorkManager updates once
-                _updateTriggerFromWorkManager.collect {
-                    // This value itself isn't directly used by ViewModel's internal trigger,
-                    // but its change signifies a need to potentially re-evaluate.
-                    Log.d("MainActivity", "WorkManager update detected, forcing ViewModel refresh.")
-                    viewModel.forceUIRefresh()
-                }
-            }
 
             AppTheme {
                 Surface(
@@ -531,35 +502,10 @@ class MainActivity :
         }
     }
 
-    private fun observeWallpaperUpdates() {
-        lifecycleScope.launch {
-            WorkManager
-                .getInstance(applicationContext)
-                .getWorkInfosByTagFlow("wallpaper_update")
-                .collect { workInfoList ->
-                    workInfoList.forEach { workInfo ->
-                        if (SettingsManager.getScheduleIsEnabled(applicationContext)) {
-                            if (workInfo.state == WorkInfo.State.ENQUEUED || workInfo.state == WorkInfo.State.RUNNING) {
-                                Log.d(
-                                    "MainActivity",
-                                    "Scheduled wallpaper_update work state changed: ${workInfo.state} AND schedule is ENABLED, triggering UI refresh via ViewModel",
-                                )
-                                _updateTriggerFromWorkManager.update { it + 1 }
-                            } else {
-                                Log.d(
-                                    "MainActivity",
-                                    "Scheduled wallpaper_update work state is ${workInfo.state} but schedule is ENABLED - not triggering an ENQUEUED/RUNNING update.",
-                                )
-                            }
-                        } else {
-                            Log.d(
-                                "MainActivity",
-                                "Scheduled wallpaper_update work state changed: ${workInfo.state} BUT schedule is DISABLED, NOT triggering UI refresh via ViewModel",
-                            )
-                        }
-                    }
-                }
-        }
+    override fun onResume() {
+        super.onResume()
+        Log.d("MainActivity", "onResume called, forcing ViewModel refresh for live preview.")
+        viewModel.forceUIRefresh()
     }
 
     override val workManagerConfiguration: Configuration
@@ -577,38 +523,60 @@ class MainActivity :
     ) {
         val context = LocalContext.current
         var isLoading by remember { mutableStateOf(false) }
+        val coroutineScope = rememberCoroutineScope() // Added for launching coroutine from permission result
 
         val permissionLauncher =
             rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { isGranted: Boolean ->
+                isLoading = false // Reset loading state after permission dialog closes
                 if (isGranted) {
-                    Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted after request. Groovy!")
-                    lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                    Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted by user. Groovy! Retrying save.")
+                    coroutineScope.launch {
+                        // Use coroutineScope here
+                        ImageSaver.saveImageRequiringPermissions(
+                            context = context,
+                            imageUrl = imageUrl,
+                            imageUniqueId = imageUniqueId,
+                            onRequestPermission = { /* Should not be called again here if permission was just granted */ },
+                            onSaveAttemptFinalized = { success, message ->
+                                isLoading = false
+                                message?.let {
+                                    Toast.makeText(context, it, if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
+                                }
+                            },
+                        )
+                    }
                 } else {
-                    Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied. Not very frottage.")
-                    Toast.makeText(context, "Storage permission denied. Cannot save image.", Toast.LENGTH_SHORT).show()
-                    isLoading = false
+                    Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied by user. Not very frottage.")
+                    Toast.makeText(context, "Storage permission is needed to save the image. Frottage halted.", Toast.LENGTH_LONG).show()
                 }
             }
 
         IconButton(
             onClick = {
                 isLoading = true
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    when (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                        PackageManager.PERMISSION_GRANTED -> {
-                            Log.d("SaveWallpaper", "Permission already granted for old Android. Groovy!")
-                            lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
-                        }
-                        else -> {
-                            Log.d("SaveWallpaper", "Requesting permission for old Android.")
+                Log.d("SaveWallpaper", "Save button clicked. isLoading set to true.")
+                coroutineScope.launch {
+                    // Use coroutineScope for the initial call as well
+                    ImageSaver.saveImageRequiringPermissions(
+                        context = context,
+                        imageUrl = imageUrl,
+                        imageUniqueId = imageUniqueId,
+                        onRequestPermission = {
+                            Log.d("SaveWallpaper", "Requesting permission from ImageSaver callback.")
+                            // isLoading is already true, no need to set it again before launching permission dialog
                             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        }
-                    }
-                } else {
-                    Log.d("SaveWallpaper", "Modern Android (API 29+), proceeding with save directly.")
-                    lifecycleScope.launch { performSaveOperation(context, imageUrl, imageUniqueId) { isLoading = false } }
+                            // Note: isLoading will be reset by permissionLauncher's callback or onSaveAttemptFinalized if permission wasn't needed
+                        },
+                        onSaveAttemptFinalized = { success, message ->
+                            isLoading = false
+                            Log.d("SaveWallpaper", "onSaveAttemptFinalized: success=$success, message=$message, isLoading set to false.")
+                            message?.let {
+                                Toast.makeText(context, it, if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
+                            }
+                        },
+                    )
                 }
             },
             enabled = !isLoading,
@@ -622,73 +590,6 @@ class MainActivity :
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
-        }
-    }
-
-    private suspend fun performSaveOperation(
-        context: android.content.Context,
-        imageUrl: String,
-        imageUniqueId: String?,
-        onComplete: () -> Unit,
-    ) {
-        try {
-            val imageLoader = ImageLoader(context)
-            val request =
-                ImageRequest
-                    .Builder(context)
-                    .data(imageUrl)
-                    .allowHardware(false)
-                    .build()
-            val result = (imageLoader.execute(request) as? SuccessResult)?.drawable
-            val bitmap = (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
-
-            if (bitmap != null) {
-                val displayName = "frottage_${imageUniqueId ?: System.currentTimeMillis()}.jpg"
-                val mimeType = "image/jpeg"
-
-                val contentValues =
-                    ContentValues().apply {
-                        put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
-                        put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Frottage")
-                            put(MediaStore.Images.Media.IS_PENDING, 1)
-                        } else {
-                            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                            val frottageDir = java.io.File(picturesDir, "Frottage")
-                            if (!frottageDir.exists()) {
-                                frottageDir.mkdirs()
-                            }
-                            val imageFile = java.io.File(frottageDir, displayName)
-                            put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
-                        }
-                    }
-
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-                uri?.let {
-                    withContext(Dispatchers.IO) {
-                        resolver.openOutputStream(it)?.use { outStream ->
-                            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outStream)
-                        }
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        contentValues.clear()
-                        contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                        resolver.update(it, contentValues, null, null)
-                    }
-                    Log.i("SaveWallpaper", "Groovy! Image saved to MediaStore: $it")
-                    Toast.makeText(context, "Image saved to Pictures/Frottage!", Toast.LENGTH_SHORT).show()
-                } ?: throw Exception("MediaStore URI was null, frottage fail!")
-            } else {
-                throw Exception("Failed to load bitmap from URL.")
-            }
-        } catch (e: Exception) {
-            Log.e("SaveWallpaper", "Frottage fail! Could not save image: ${e.message}", e)
-            Toast.makeText(context, "Frottage fail! Could not save image: ${e.message}", Toast.LENGTH_SHORT).show()
-        } finally {
-            onComplete()
         }
     }
 
