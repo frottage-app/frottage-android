@@ -9,6 +9,7 @@
     "ripgrep@latest",
     "entr@latest",
     "fastlane@latest",
+    "fzf@latest",
   ],
 }
 

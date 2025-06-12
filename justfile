@@ -29,9 +29,10 @@ lint:
   fi
   ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
 
-check: lint
-  @echo "Groovy! Building your awesome Frottage debug APK after linting..."
+check:
   ./gradlew assembleDebug
+  just test
+  just lint
 
 # run ci checks locally
 ci:
@@ -56,6 +57,10 @@ uninstall:
 # Run app for specified variant (debug/release)
 run variant="debug": (install variant)
   scripts/logcat com.frottage
+
+# Launch an Android emulator after selecting from a list
+emulator:
+  @./scripts/launch-emulator.sh
 
 deploy:
   mkdir -p keys
