@@ -27,16 +27,20 @@ object WallpaperSetter {
                 val imageUrl = wallpaperSource.imageSetting.url(context, activeTimestampKey)
                 Log.i(TAG, "Common wallpaper URL: $imageUrl, for activeTimestampKey: $activeTimestampKey")
 
-                // Fetch the original bitmap once, using activeTimestampKey for disk cache
+                // Fetch the targetKey for the cache
+                val targetKey = getFrottageTargetKey(context)
+
+                // Fetch the original bitmap once, using activeTimestampKey and targetKey for disk cache
                 val imageRequest =
                     wallpaperSource.schedule
-                        .imageRequest(imageUrl, context, activeTimestampKey)
+                        .imageRequest(imageUrl, context, activeTimestampKey, targetKey)
                         .newBuilder()
                         .allowHardware(false)
                         .build()
 
-                Log.d(TAG, "Downloading original bitmap from $imageUrl with diskCacheKey: $activeTimestampKey")
-                logToFile(context, "Downloading original bitmap from $imageUrl with diskCacheKey: $activeTimestampKey")
+                val cacheKeyValue = wallpaperSource.schedule.constructCacheKey(targetKey, activeTimestampKey)
+                Log.d(TAG, "Downloading original bitmap from $imageUrl with diskCacheKey: $cacheKeyValue")
+                logToFile(context, "Downloading original bitmap from $imageUrl with diskCacheKey: $cacheKeyValue")
                 val result = (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable
                 val originalBitmap =
                     (result as? android.graphics.drawable.BitmapDrawable)?.bitmap

@@ -18,16 +18,23 @@ interface Schedule {
 
     fun getActivePeriodTimestampKey(now: ZonedDateTime): String = zonedDateTimeToStringKey(prevUpdateTime(now))
 
+    // Consolidated cache key construction
+    fun constructCacheKey(
+        targetKey: String,
+        timestampKey: String,
+    ): String = "$targetKey-$timestampKey"
+
     fun imageRequest(
         url: String,
         context: Context,
         timestampKey: String,
+        targetKey: String,
     ): ImageRequest =
         ImageRequest
             .Builder(context)
             .data(url)
-            .diskCacheKey(timestampKey)
-            .memoryCacheKey(timestampKey)
+            .diskCacheKey(constructCacheKey(targetKey, timestampKey))
+            .memoryCacheKey(constructCacheKey(targetKey, timestampKey))
             .build()
 }
 

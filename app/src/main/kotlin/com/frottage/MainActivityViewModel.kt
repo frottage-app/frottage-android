@@ -133,11 +133,13 @@ class MainActivityViewModel(
                     val schedule = wallpaperSource.schedule
                     val imageUrl = wallpaperSource.imageSetting.url.invoke(context, key)
                     Log.d("ViewModel", "[DEBUG] Construct ImageRequest Effect (ViewModel): Derived URL from active source: $imageUrl")
-                    val request = schedule.imageRequest(imageUrl, context, key)
+                    val targetKey = getFrottageTargetKey(context) // Fetch targetKey
+                    val request = schedule.imageRequest(imageUrl, context, key, targetKey) // Pass targetKey
                     _imageRequestForPreview.value = request
+                    val cacheKeyValue = schedule.constructCacheKey(targetKey, key)
                     Log.d(
                         "ViewModel",
-                        "[DEBUG] Construct ImageRequest Effect (ViewModel): Created ImageRequest: $request for URL: $imageUrl with diskCacheKey: $key. POPULATED.",
+                        "[DEBUG] Construct ImageRequest Effect (ViewModel): Created ImageRequest: $request for URL: $imageUrl with diskCacheKey: $cacheKeyValue. POPULATED.",
                     )
                 } else {
                     _imageRequestForPreview.value = null
