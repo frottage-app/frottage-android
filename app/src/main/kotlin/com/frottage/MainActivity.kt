@@ -654,9 +654,11 @@ class MainActivity :
                         logToFile(context, "Schedule enabled. Let the frottage flow!")
                         requestBatteryOptimizationExemption()
                         scheduleNextUpdate(context)
+                        AnalyticsService.trackEvent(context, "enable_schedule")
                     } else {
                         logToFile(context, "Schedule disabled. Frottage paused for now.")
                         cancelUpdateSchedule(context)
+                        AnalyticsService.trackEvent(context, "disable_schedule")
                     }
                 },
             )

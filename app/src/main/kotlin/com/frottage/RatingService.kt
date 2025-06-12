@@ -9,26 +9,9 @@ import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
-
-private const val PREFS_NAME = "FrottagePrefs"
-private const val DEVICE_ID_KEY = "myFrottageDeviceId"
 
 // private const val API_HOST = "http://10.0.2.2:3000" // for local testing
 private const val API_HOST = "https://frottage.fly.dev"
-
-private fun getMyDeviceId(context: Context): String {
-    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    var deviceId = prefs.getString(DEVICE_ID_KEY, null)
-    if (deviceId == null) {
-        deviceId = UUID.randomUUID().toString()
-        prefs.edit().putString(DEVICE_ID_KEY, deviceId).apply()
-        Log.i("StarRatingSvc", "Groovy! Generated new deviceId: $deviceId")
-    } else {
-        Log.d("StarRatingSvc", "Fetched existing deviceId: $deviceId")
-    }
-    return deviceId
-}
 
 private suspend fun postRatingInternal(
     imageId: Long,
@@ -139,7 +122,7 @@ internal suspend fun submitRating(
         "Attempting to submit rating: $rating stars for imageId: $imageIdLong ($imageIdString)",
     )
 
-    val deviceId = getMyDeviceId(context)
+    val deviceId = DeviceIdManager.getDeviceId(context)
     val success = postRatingInternal(imageIdLong, rating, deviceId)
 
     withContext(Dispatchers.Main) {

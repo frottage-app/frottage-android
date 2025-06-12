@@ -176,6 +176,17 @@ class MainActivityViewModel(
             try {
                 WallpaperSetter.setWallpaper(getApplication(), timestampKeyToSet)
                 Log.i("ViewModel", "Manual wallpaper set successful for key: $timestampKeyToSet. Groovy!")
+                // Analytics: Track successful manual wallpaper set
+                val context = getApplication<Application>().applicationContext
+                val properties = mutableMapOf<String, Any?>()
+                _currentlyDisplayedImageId.value?.let { properties["image_id"] = it }
+                properties["target_name"] = getFrottageTargetKey(context)
+                properties["theme"] = if (isDarkTheme(context)) "dark" else "light"
+                AnalyticsService.trackEvent(
+                    context = context,
+                    eventName = "set_wallpaper_button",
+                    eventProperties = properties,
+                )
             } catch (e: Exception) {
                 Log.e("ViewModel", "Manual wallpaper set failed for key: $timestampKeyToSet", e)
                 _manualSetResultMessage.value = "Frottage fail: ${e.message ?: "Unknown error"}"
