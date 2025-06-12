@@ -10,7 +10,7 @@ concurrency:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 env:
   GITHUB_ACTIONS: true # For tools that might adjust output for GHA
@@ -77,5 +77,17 @@ jobs:
         printf "%s" "$PLAY_SERVICE_ACCOUNT_JSON" > keys/play-service-account.json
 
     - name: Deploy to Play Store with Fastlane
+      id: fastlane_deploy
       run: |
         devbox run -- fastlane playstore
+
+    - name: Create and Push Git Tag
+      if: success()
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        TAG_NAME="build/${{ steps.fastlane_deploy.outputs.new_version_code }}"
+        git tag -a "$TAG_NAME" -m "Frottage achievement unlocked! Version ${{ steps.fastlane_deploy.outputs.new_version_code }} hits the internal track."
+        git push origin "$TAG_NAME"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
