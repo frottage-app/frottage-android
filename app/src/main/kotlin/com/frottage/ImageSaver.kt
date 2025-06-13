@@ -58,14 +58,8 @@ object ImageSaver {
 
         try {
             val inferredFileName = imageUrl.substringAfterLast('/')
-            val inferredExtension = inferredFileName.substringAfterLast('.', "jpg")
-            val inferredMimeType =
-                when (inferredExtension.lowercase()) {
-                    "png" -> "image/png"
-                    "webp" -> "image/webp"
-                    "gif" -> "image/gif"
-                    else -> "image/jpeg"
-                }
+            val inferredExtension = "jpg" // Always jpg
+            val inferredMimeType = "image/jpeg" // Always image/jpeg
 
             val displayName = "frottage_${imageUniqueId ?: System.currentTimeMillis()}.$inferredExtension"
             Log.d(TAG, "Using displayName: $displayName, mimeType: $inferredMimeType")
