@@ -5,19 +5,29 @@ import android.util.Log
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 // private const val API_HOST = "http://10.0.2.2:3000" // for local testing
 private const val API_HOST = "https://frottage.fly.dev"
+
+private val client =
+    OkHttpClient
+        .Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
 
 private suspend fun postRatingInternal(
     imageId: Long,
     stars: Int,
     deviceId: String,
-): Boolean {
+): Boolean =
     try {
         val voteUrl = URL("$API_HOST/api/vote")
         val payload =
@@ -33,41 +43,32 @@ private suspend fun postRatingInternal(
             "Posting rating with payload: $payload to URL: $voteUrl. This is so frottage!",
         )
 
-        val responseCode =
-            withContext(Dispatchers.IO) {
-                val connection = voteUrl.openConnection() as HttpURLConnection
-                try {
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty(
-                        "Content-Type",
-                        "application/json; charset=utf-8",
-                    )
-                    connection.setRequestProperty("Accept", "application/json")
-                    connection.connectTimeout = 5000 // 5 seconds
-                    connection.readTimeout = 5000 // 5 seconds
-                    connection.doOutput = true
+        val requestBody = payload.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request =
+            Request
+                .Builder()
+                .url(voteUrl)
+                .post(requestBody)
+                .addHeader("Accept", "application/json")
+                .build()
 
-                    OutputStreamWriter(connection.outputStream, "UTF-8").use { writer ->
-                        writer.write(payload)
-                        writer.flush()
-                    }
-                    connection.responseCode
-                } finally {
-                    connection.disconnect()
+        withContext(Dispatchers.IO) {
+            // Ensure network call is off the main thread
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    Log.i(
+                        "StarRatingSvc",
+                        "POST request successful (HTTP ${response.code}) for imageId: $imageId, stars: $stars. How groovy is that?!",
+                    )
+                    true // return true from withContext block
+                } else {
+                    Log.e(
+                        "StarRatingSvc",
+                        "POST request failed (HTTP ${response.code}) for imageId: $imageId, stars: $stars. Response: ${response.body?.string()}. What a frottage shame.",
+                    )
+                    false // return false from withContext block
                 }
             }
-        return if (responseCode in 200..299) {
-            Log.i(
-                "StarRatingSvc",
-                "POST request successful (HTTP $responseCode) for imageId: $imageId, stars: $stars. How groovy is that?!",
-            )
-            true
-        } else {
-            Log.e(
-                "StarRatingSvc",
-                "POST request failed (HTTP $responseCode) for imageId: $imageId, stars: $stars. What a frottage shame.",
-            )
-            false
         }
     } catch (e: Exception) {
         Log.e(
@@ -75,9 +76,8 @@ private suspend fun postRatingInternal(
             "Exception submitting rating for imageId $imageId, stars: $stars: ${e.message}",
             e,
         )
-        return false
+        false // return false in case of exception
     }
-}
 
 internal suspend fun submitRating(
     context: Context,

@@ -7,16 +7,26 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 private const val API_HOST_ANALYTICS = "https://frottage.fly.dev"
 private const val API_PATH_ANALYTICS = "/api/analytics/event"
 
 object AnalyticsService {
     private const val TAG = "AnalyticsService"
+
+    private val client =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
 
     private fun getAppVersion(context: Context): String =
         try {
@@ -62,34 +72,36 @@ object AnalyticsService {
                     "Tracking analytics event: '$eventName'. Payload: $payload. Endpoint: $eventUrl. This is some groovy tracking!",
                 )
 
-                val connection = eventUrl.openConnection() as HttpURLConnection
+                val requestBody = payload.toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request =
+                    Request
+                        .Builder()
+                        .url(eventUrl)
+                        .post(requestBody)
+                        .addHeader("Accept", "application/json")
+                        .build()
+
                 try {
-                    connection.requestMethod = "POST"
-                    connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                    connection.setRequestProperty("Accept", "application/json")
-                    connection.connectTimeout = 10000 // 10 seconds
-                    connection.readTimeout = 10000 // 10 seconds
-                    connection.doOutput = true
-
-                    OutputStreamWriter(connection.outputStream, "UTF-8").use { writer ->
-                        writer.write(payload)
-                        writer.flush()
+                    client.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            Log.i(
+                                TAG,
+                                "Analytics event '$eventName' sent successfully (HTTP ${response.code}). Total frottage achieved!",
+                            )
+                        } else {
+                            Log.w(
+                                TAG,
+                                "Frottage hiccup: Analytics event '$eventName' submission failed (HTTP ${response.code}). Response: ${response.body?.string()}",
+                            )
+                        }
                     }
-
-                    val responseCode = connection.responseCode
-                    if (responseCode in 200..299) {
-                        Log.i(
-                            TAG,
-                            "Analytics event '$eventName' sent successfully (HTTP $responseCode). Total frottage achieved!",
-                        )
-                    } else {
-                        Log.w(
-                            TAG,
-                            "Frottage hiccup: Analytics event '$eventName' submission failed (HTTP $responseCode). Response: ${connection.errorStream?.bufferedReader()?.readText()}",
-                        )
-                    }
-                } finally {
-                    connection.disconnect()
+                } catch (e: Exception) {
+                    Log.e(
+                        TAG,
+                        "Frottage disaster! Exception sending analytics event '$eventName': ${e.message}",
+                        e,
+                    )
+                    // As per decision, log and continue
                 }
             } catch (e: Exception) {
                 Log.e(

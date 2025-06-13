@@ -11,12 +11,21 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.OutputStream
-import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 object ImageSaver {
     private const val TAG = "ImageSaver"
+
+    private val client =
+        OkHttpClient
+            .Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
 
     suspend fun saveImageRequiringPermissions(
         context: Context,
@@ -84,32 +93,35 @@ object ImageSaver {
 
             uri?.let { imageUri ->
                 withContext(Dispatchers.IO) {
-                    var connection: HttpURLConnection? = null
                     var inputStream: java.io.InputStream? = null
                     var outputStream: OutputStream? = null
                     try {
                         val url = URL(imageUrl)
-                        connection = url.openConnection() as HttpURLConnection
-                        connection.connectTimeout = 15000
-                        connection.readTimeout = 15000
-                        connection.connect()
+                        val request = Request.Builder().url(url).build()
 
-                        if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                            inputStream = connection.inputStream
-                            outputStream = resolver.openOutputStream(imageUri)
-                            if (outputStream != null) {
-                                inputStream.copyTo(outputStream)
-                                Log.i(TAG, "Groovy! Image bytes directly copied to MediaStore: $imageUri")
+                        client.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                inputStream = response.body?.byteStream()
+                                if (inputStream != null) {
+                                    outputStream = resolver.openOutputStream(imageUri)
+                                    if (outputStream != null) {
+                                        inputStream.copyTo(outputStream)
+                                        Log.i(TAG, "Groovy! Image bytes directly copied to MediaStore: $imageUri")
+                                    } else {
+                                        throw Exception("Failed to get OutputStream from ContentResolver.")
+                                    }
+                                } else {
+                                    throw Exception("Response body was null for image download from $imageUrl")
+                                }
                             } else {
-                                throw Exception("Failed to get OutputStream from ContentResolver.")
+                                throw Exception(
+                                    "HTTP error ${response.code} fetching image from $imageUrl. Response: ${response.body?.string()}",
+                                )
                             }
-                        } else {
-                            throw Exception("HTTP error ${connection.responseCode} fetching image from $imageUrl")
                         }
                     } finally {
                         inputStream?.close()
                         outputStream?.close()
-                        connection?.disconnect()
                     }
                 }
 

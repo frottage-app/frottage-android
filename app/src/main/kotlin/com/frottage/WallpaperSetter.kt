@@ -8,7 +8,6 @@ import coil3.Image
 import coil3.ImageLoader
 import coil3.asDrawable
 import coil3.request.ErrorResult
-import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.bitmapConfig
 import kotlinx.coroutines.Dispatchers
