@@ -68,7 +68,8 @@ class WallpaperWorker(
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
                 logToFile(applicationContext, "[WorkerDebug] Worker started. Current UTC time (now): $now")
 
-                val schedule = SettingsManager.currentWallpaperSource.schedule
+                val wallpaperSource = SettingsManager.currentWallpaperSource
+                val schedule = wallpaperSource.schedule
                 logToFile(applicationContext, "[WorkerDebug] Using schedule type: ${schedule::class.simpleName}")
 
                 val previousUpdateTime = schedule.prevUpdateTime(now)
@@ -80,7 +81,47 @@ class WallpaperWorker(
                     "[WorkerDebug] Final activeTimestampKey from getActivePeriodTimestampKey(now): $activeTimestampKey",
                 )
 
-                WallpaperSetter.setWallpaper(applicationContext, activeTimestampKey) // Pass key
+                WallpaperSetter.setWallpaper(applicationContext, activeTimestampKey)
+
+                // Analytics: Track successful scheduled wallpaper set
+                try {
+                    val targetKey = getFrottageTargetKey(applicationContext)
+                    val imageId =
+                        if (SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem) {
+                            ImageMetadataService.fetchAndParseImageId(
+                                applicationContext,
+                                activeTimestampKey,
+                                targetKey,
+                            )
+                        } else {
+                            null
+                        }
+
+                    val properties =
+                        mutableMapOf<String, Any?>(
+                            "target_name" to targetKey,
+                            "theme" to if (isDarkTheme(applicationContext)) "dark" else "light",
+                            "source" to "schedule",
+                        )
+                    imageId?.let { properties["image_id"] = it }
+
+                    AnalyticsService.trackEvent(
+                        context = applicationContext,
+                        eventName = "set_wallpaper_schedule",
+                        eventProperties = properties,
+                    )
+                } catch (analyticsException: Exception) {
+                    Log.e(
+                        "WallpaperWorker",
+                        "Frottage hiccup: Failed to send 'set_wallpaper_schedule' analytics event: ${analyticsException.message}",
+                        analyticsException,
+                    )
+                    logToFile(
+                        applicationContext,
+                        "Worker: Failed to send analytics event 'set_wallpaper_schedule': ${analyticsException.message}",
+                    )
+                }
+
                 scheduleNextUpdate(applicationContext)
                 Result.success()
             } catch (e: Exception) {
