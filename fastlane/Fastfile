@@ -21,7 +21,7 @@ lane :playstore do
 
     new_version_code = latest_version_code + 1
     UI.message("Incremented version code to #{new_version_code}")
-    puts "::set-output name=new_version_code::#{new_version_code}" # Output for GitHub Actions
+    sh("echo \"new_version_code=#{new_version_code}\" >> $GITHUB_OUTPUT") # Output for GitHub Actions
 
   gradle(
     task: 'bundle',
