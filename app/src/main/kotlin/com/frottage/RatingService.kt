@@ -5,16 +5,25 @@ import android.util.Log
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.net.URL
 import java.util.concurrent.TimeUnit
 
 // private const val API_HOST = "http://10.0.2.2:3000" // for local testing
 private const val API_HOST = "https://frottage.fly.dev"
+
+@Serializable
+private data class RatingPayload(
+    val imageId: Long,
+    val stars: Int,
+    val deviceId: String,
+)
 
 private val client =
     OkHttpClient
@@ -23,6 +32,9 @@ private val client =
         .readTimeout(5, TimeUnit.SECONDS)
         .build()
 
+// Configure a Json instance, can be shared if defined in a common place
+private val json = Json { ignoreUnknownKeys = true }
+
 private suspend fun postRatingInternal(
     imageId: Long,
     stars: Int,
@@ -30,13 +42,13 @@ private suspend fun postRatingInternal(
 ): Boolean =
     try {
         val voteUrl = URL("$API_HOST/api/vote")
-        val payload =
-            JSONObject()
-                .apply {
-                    put("imageId", imageId)
-                    put("stars", stars)
-                    put("deviceId", deviceId)
-                }.toString()
+        val ratingData =
+            RatingPayload(
+                imageId = imageId,
+                stars = stars,
+                deviceId = deviceId,
+            )
+        val payload = json.encodeToString(ratingData)
 
         Log.d(
             "StarRatingSvc",

@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.20"
 }
 
 android {
@@ -79,6 +80,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
     implementation("io.coil-kt.coil3:coil-network-cache-control:3.2.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.0.21")

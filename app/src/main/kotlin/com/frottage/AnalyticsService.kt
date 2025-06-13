@@ -7,16 +7,28 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import java.net.URL
 import java.util.concurrent.TimeUnit
 
 private const val API_HOST_ANALYTICS = "https://frottage.fly.dev"
 private const val API_PATH_ANALYTICS = "/api/analytics/event"
+
+@Serializable
+private data class AnalyticsPayload(
+    val eventName: String,
+    val deviceId: String,
+    val appVersion: String,
+    val platform: String,
+    val osVersion: String,
+    val properties: Map<String, String?>, // Assuming properties are mostly strings or null
+)
 
 object AnalyticsService {
     private const val TAG = "AnalyticsService"
@@ -28,6 +40,9 @@ object AnalyticsService {
             .readTimeout(10, TimeUnit.SECONDS)
             .build()
 
+    // Configure a Json instance
+    private val json = Json { ignoreUnknownKeys = true }
+
     private fun getAppVersion(context: Context): String =
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -37,6 +52,7 @@ object AnalyticsService {
             "unknown_version"
         }
 
+    @Suppress("UNCHECKED_CAST")
     fun trackEvent(
         context: Context,
         eventName: String,
@@ -50,21 +66,26 @@ object AnalyticsService {
                 val platform = "Android"
                 val osVersion = Build.VERSION.RELEASE
 
-                val propertiesJson = JSONObject()
-                for ((key, value) in eventProperties) {
-                    propertiesJson.put(key, value)
-                }
+                // Convert eventProperties to Map<String, String?> for serialization
+                // This is a simplification; if properties have non-string values,
+                // this needs more robust handling (e.g., Map<String, JsonElement>
+                // or custom serializers if structure is complex but known).
+                val serializableProperties =
+                    eventProperties.mapValues { entry ->
+                        entry.value?.toString()
+                    }
 
-                val payload =
-                    JSONObject()
-                        .apply {
-                            put("eventName", eventName)
-                            put("deviceId", deviceId)
-                            put("appVersion", appVersion)
-                            put("platform", platform)
-                            put("osVersion", osVersion)
-                            put("properties", propertiesJson)
-                        }.toString()
+                val analyticsData =
+                    AnalyticsPayload(
+                        eventName = eventName,
+                        deviceId = deviceId,
+                        appVersion = appVersion,
+                        platform = platform,
+                        osVersion = osVersion,
+                        properties = serializableProperties,
+                    )
+
+                val payload = json.encodeToString(analyticsData)
 
                 val eventUrl = URL(API_HOST_ANALYTICS + API_PATH_ANALYTICS)
                 Log.d(
