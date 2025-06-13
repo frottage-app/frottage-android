@@ -86,7 +86,7 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        TAG_NAME="build/${{ steps.fastlane_deploy.outputs.new_version_code }}"
+        TAG_NAME="build-${{ steps.fastlane_deploy.outputs.new_version_code }}"
         git tag -a "$TAG_NAME" -m "Frottage achievement unlocked! Version ${{ steps.fastlane_deploy.outputs.new_version_code }} hits the internal track."
         git push origin "$TAG_NAME"
       env:
