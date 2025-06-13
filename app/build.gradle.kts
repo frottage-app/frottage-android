@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.frottage"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.frottage"
         minSdk = 21 // Android 5 - https://apilevels.com
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         // Required when setting minSdkVersion to 20 or lower
@@ -45,22 +45,22 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
+        kotlinCompilerExtensionVersion = "2.1.20"
     }
 
     compileOptions {
         // Flag to enable support for the new language APIs
         isCoreLibraryDesugaringEnabled = true
-        // Sets Java compatibility to Java 8
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Sets Java compatibility to Java 17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     kotlin {
-        jvmToolchain(1_8)
+        jvmToolchain(17)
     }
 
     packaging {
@@ -75,7 +75,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("io.coil-kt:coil-compose:2.7.0") // coil3.0.3 was caching too much
+    implementation("io.coil-kt.coil3:coil-core:3.2.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.2.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.2.0")
+    implementation("io.coil-kt.coil3:coil-network-cache-control:3.2.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
     implementation(platform("androidx.compose:compose-bom:2024.11.00"))
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:2.0.21")

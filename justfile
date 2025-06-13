@@ -30,6 +30,8 @@ lint:
   ktlint -R ktlint-compose.jar "app/src/**/*.kt" "app/build.gradle.kts" "build.gradle.kts" "settings.gradle.kts"
 
 check:
+  @echo "ANDROID_HOME is: $ANDROID_HOME"
+  @echo "ANDROID_SDK_ROOT is: $ANDROID_SDK_ROOT"
   ./gradlew assembleDebug
   just test
   just lint

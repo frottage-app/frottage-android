@@ -44,7 +44,7 @@ fun blurBitmap(
     // Each pass compounds with previous passes according to: new_radius = sqrt(current² + pass²)
     while (currentRadius < targetRadius) {
         outputBitmap =
-            Bitmap.createBitmap(currentBitmap.width, currentBitmap.height, currentBitmap.config)
+            Bitmap.createBitmap(currentBitmap.width, currentBitmap.height, currentBitmap.config ?: Bitmap.Config.ARGB_8888)
         val inputAllocation = Allocation.createFromBitmap(rs, currentBitmap)
         val outputAllocation = Allocation.createFromBitmap(rs, outputBitmap)
         val blurScript = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))

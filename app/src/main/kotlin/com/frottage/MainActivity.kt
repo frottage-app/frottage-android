@@ -65,8 +65,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.work.Configuration
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.frottage.theme.AppTheme
 import com.frottage.ui.composables.NextUpdateTime
 import com.frottage.ui.composables.StarRatingBar
@@ -380,8 +380,6 @@ class MainActivity :
                 "MainActivity",
                 "[DEBUG] Preview Composable: Received imageRequest: $imageRequest, timestampKeyForFullscreen: $timestampKeyForFullscreen",
             )
-            val context = LocalContext.current
-
             @Suppress("SENSELESS_COMPARISON")
             if (imageRequest != null) {
                 Log.d("MainActivity", "[DEBUG] Preview Composable: imageRequest is NOT NULL, attempting to load AsyncImage.")

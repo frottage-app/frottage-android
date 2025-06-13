@@ -2,9 +2,15 @@ package com.frottage
 
 import android.app.WallpaperManager
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
-import coil.ImageLoader
-import coil.request.SuccessResult
+import coil3.Image
+import coil3.ImageLoader
+import coil3.asDrawable
+import coil3.request.ErrorResult
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.bitmapConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -23,44 +29,55 @@ object WallpaperSetter {
                 val wallpaperManager = WallpaperManager.getInstance(context)
                 val imageLoader = ImageLoader(context)
 
-                // Use the passed activeTimestampKey for the URL
                 val imageUrl = wallpaperSource.imageSetting.url(context, activeTimestampKey)
                 Log.i(TAG, "Common wallpaper URL: $imageUrl, for activeTimestampKey: $activeTimestampKey")
 
-                // Fetch the targetKey for the cache
                 val targetKey = getFrottageTargetKey(context)
 
-                // Fetch the original bitmap once, using activeTimestampKey and targetKey for disk cache
-                val imageRequest =
+                val baseImageRequest =
                     wallpaperSource.schedule
                         .imageRequest(imageUrl, context, activeTimestampKey, targetKey)
+
+                val imageRequest =
+                    baseImageRequest
                         .newBuilder()
-                        .allowHardware(false)
+                        .bitmapConfig(Bitmap.Config.ARGB_8888)
                         .build()
 
                 val cacheKeyValue = wallpaperSource.schedule.constructCacheKey(targetKey, activeTimestampKey)
                 Log.d(TAG, "Downloading original bitmap from $imageUrl with diskCacheKey: $cacheKeyValue")
                 logToFile(context, "Downloading original bitmap from $imageUrl with diskCacheKey: $cacheKeyValue")
-                val result = (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable
-                val originalBitmap =
-                    (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                        ?: throw Exception("Failed to load original image from $imageUrl")
 
-                // Set for Lock Screen if enabled (typically unblurred)
+                val result = imageLoader.execute(imageRequest)
+
+                val coilImage: Image =
+                    if (result is SuccessResult) {
+                        result.image
+                    } else if (result is ErrorResult) {
+                        Log.e(TAG, "ImageRequest failed for $imageUrl", result.throwable)
+                        logToFile(context, "ImageRequest failed for $imageUrl. Error: ${result.throwable.message}")
+                        throw Exception("ImageRequest failed for $imageUrl", result.throwable)
+                    } else {
+                        Log.e(TAG, "ImageRequest returned an unknown result type for $imageUrl: ${result::class.simpleName}")
+                        throw Exception("Failed to load image from $imageUrl. Result was ${result::class.simpleName}")
+                    }
+
+                val androidDrawable: android.graphics.drawable.Drawable = coilImage.asDrawable(context.resources)
+                val originalBitmap =
+                    (androidDrawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        ?: throw Exception("Failed to convert Coil Image to Android Bitmap for $imageUrl")
+
                 if (SettingsManager.getLockScreenEnable(context)) {
                     Log.i(TAG, "Setting Lock Screen wallpaper from $imageUrl")
-                    // For now, assume lock screen is not blurred by default by source setting.
-                    // If lock screen blur becomes configurable, add logic here.
                     wallpaperManager.setBitmap(originalBitmap, null, true, WallpaperManager.FLAG_LOCK)
                     Log.i(TAG, "Lock Screen wallpaper set.")
                 }
 
-                // Set for Home Screen if enabled
                 if (SettingsManager.getHomeScreenEnable(context)) {
-                    var bitmapForHomeScreen = originalBitmap // Start with the original
+                    var bitmapForHomeScreen = originalBitmap
                     if (SettingsManager.getHomeScreenBlur(context)) {
                         Log.d(TAG, "Blurring Home Screen image from $imageUrl")
-                        bitmapForHomeScreen = blurBitmap(context, originalBitmap, 64.0f) // Blur the original
+                        bitmapForHomeScreen = blurBitmap(context, originalBitmap, 64.0f)
                     }
                     Log.i(TAG, "Setting Home Screen wallpaper from $imageUrl")
                     wallpaperManager.setBitmap(bitmapForHomeScreen, null, true, WallpaperManager.FLAG_SYSTEM)

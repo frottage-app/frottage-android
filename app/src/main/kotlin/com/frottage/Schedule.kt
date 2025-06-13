@@ -1,7 +1,7 @@
 package com.frottage
 
 import android.content.Context
-import coil.request.ImageRequest
+import coil3.request.ImageRequest
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
