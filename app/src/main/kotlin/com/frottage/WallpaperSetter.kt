@@ -28,10 +28,10 @@ object WallpaperSetter {
                 val wallpaperManager = WallpaperManager.getInstance(context)
                 val imageLoader = ImageLoader(context)
 
-                val imageUrl = wallpaperSource.imageSetting.url(context, activeTimestampKey)
+                val imageUrl = FrottageApiService.getWallpaperUrl(context, activeTimestampKey)
                 Log.i(TAG, "Common wallpaper URL: $imageUrl, for activeTimestampKey: $activeTimestampKey")
 
-                val targetKey = getFrottageTargetKey(context)
+                val targetKey = FrottageApiService.getFrottageTargetKey(context)
 
                 val baseImageRequest =
                     wallpaperSource.schedule

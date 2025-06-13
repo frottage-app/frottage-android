@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -77,7 +79,7 @@ class MainActivityViewModel(
             currentTimestampKey.collect { key ->
                 // Collect from the StateFlow
                 val context = getApplication<Application>().applicationContext
-                val targetKeyForRating = getFrottageTargetKey(context) // Assuming getFrottageTargetKey is accessible
+                val targetKeyForRating = FrottageApiService.getFrottageTargetKey(context) // Assuming getFrottageTargetKey is accessible
                 Log.d(
                     "ViewModel",
                     "Effect 1 (ViewModel): currentTimestampKey: $key, targetKey: $targetKeyForRating, supportsFrottageRatingSystem: ${SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem}",
@@ -133,7 +135,7 @@ class MainActivityViewModel(
                     val schedule = wallpaperSource.schedule
                     val imageUrl = wallpaperSource.imageSetting.url.invoke(context, key)
                     Log.d("ViewModel", "[DEBUG] Construct ImageRequest Effect (ViewModel): Derived URL from active source: $imageUrl")
-                    val targetKey = getFrottageTargetKey(context) // Fetch targetKey
+                    val targetKey = FrottageApiService.getFrottageTargetKey(context) // Fetch targetKey
                     val request = schedule.imageRequest(imageUrl, context, key, targetKey) // Pass targetKey
                     _imageRequestForPreview.value = request
                     val cacheKeyValue = schedule.constructCacheKey(targetKey, key)
@@ -180,14 +182,16 @@ class MainActivityViewModel(
                 Log.i("ViewModel", "Manual wallpaper set successful for key: $timestampKeyToSet. Groovy!")
                 // Analytics: Track successful manual wallpaper set
                 val context = getApplication<Application>().applicationContext
-                val properties = mutableMapOf<String, Any?>()
-                _currentlyDisplayedImageId.value?.let { properties["image_id"] = it }
-                properties["target_name"] = getFrottageTargetKey(context)
-                properties["theme"] = if (isDarkTheme(context)) "dark" else "light"
+                val jsonProperties =
+                    buildJsonObject {
+                        _currentlyDisplayedImageId.value?.let { put("image_id", JsonPrimitive(it)) }
+                        put("target_name", JsonPrimitive(FrottageApiService.getFrottageTargetKey(context)))
+                        put("theme", JsonPrimitive(if (FrottageApiService.isDarkTheme(context)) "dark" else "light"))
+                    }
                 AnalyticsService.trackEvent(
                     context = context,
                     eventName = "set_wallpaper_button",
-                    eventProperties = properties,
+                    properties = jsonProperties,
                 )
             } catch (e: Exception) {
                 Log.e("ViewModel", "Manual wallpaper set failed for key: $timestampKeyToSet", e)
@@ -223,7 +227,7 @@ class MainActivityViewModel(
         viewModelScope.launch {
             Log.d("ViewModel", "Rating changed for $imageId to $newRating. Saving and submitting.")
             RatingPersistence.saveRating(context, imageId, newRating)
-            submitRating(context, newRating, imageId) // Assuming submitRating is a suspend fun or handles its own context
+            RatingService.submitRating(context, newRating, imageId)
         }
     }
 

@@ -17,8 +17,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.frottage.FrottageApiService
 import com.frottage.SettingsManager
-import com.frottage.getFrottageTargetKey
 
 @Composable
 fun FullscreenImageScreen(
@@ -34,9 +34,9 @@ fun FullscreenImageScreen(
         if (timestampKey != null) {
             Log.d("FullscreenImageScreen", "[DEBUG] Received timestampKey: $timestampKey")
             val wallpaperSource = SettingsManager.currentWallpaperSource
-            val imageUrl = wallpaperSource.imageSetting.url.invoke(context, timestampKey)
+            val imageUrl = FrottageApiService.getWallpaperUrl(context, timestampKey)
             Log.d("FullscreenImageScreen", "[DEBUG] Derived imageUrl: $imageUrl for timestampKey: $timestampKey")
-            val targetKey = getFrottageTargetKey(context)
+            val targetKey = FrottageApiService.getFrottageTargetKey(context)
             imageRequestForFullscreen =
                 wallpaperSource.schedule.imageRequest(
                     imageUrl,

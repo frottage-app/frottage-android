@@ -87,7 +87,7 @@ class MainActivity :
         super.onCreate(savedInstanceState)
 
         // Determine and set screen orientation based on device type
-        if (isTablet(applicationContext)) {
+        if (FrottageApiService.isTablet(applicationContext)) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         } else {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT

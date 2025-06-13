@@ -11,21 +11,11 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.OutputStream
 import java.net.URL
-import java.util.concurrent.TimeUnit
 
 object ImageSaver {
     private const val TAG = "ImageSaver"
-
-    private val client =
-        OkHttpClient
-            .Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .build()
 
     suspend fun saveImageRequiringPermissions(
         context: Context,
@@ -44,22 +34,18 @@ object ImageSaver {
         ) {
             Log.d(TAG, "Storage permission needed for pre-Q device. Requesting via callback.")
             onRequestPermission()
-            // onSaveAttemptFinalized will be called by the launcher's result in MainActivity
-            // or if the user doesn't grant permission.
-            // For this path, the immediate attempt concludes by requesting permission.
-            // The caller (MainActivity) should manage isLoading state until permission result.
-            return // Important: return here, actual save will be re-attempted if permission granted
+            return // Actual save will be re-attempted if permission granted
         }
 
-        // Proceed if permission is granted or not needed (API Q+ for specific MediaStore operations)
         Log.d(TAG, "Permission granted or not required. Proceeding with actual save.")
-        var success = false
-        var message: String? = null
+        var finalSuccess = false
+        var finalMessage: String? = null
 
         try {
             val inferredFileName = imageUrl.substringAfterLast('/')
-            val inferredExtension = "jpg" // Always jpg
-            val inferredMimeType = "image/jpeg" // Always image/jpeg
+            // Assuming JPG, adjust if an actual inference mechanism or parameter is added
+            val inferredExtension = "jpg"
+            val inferredMimeType = "image/jpeg"
 
             val displayName = "frottage_${imageUniqueId ?: System.currentTimeMillis()}.$inferredExtension"
             Log.d(TAG, "Using displayName: $displayName, mimeType: $inferredMimeType")
@@ -72,10 +58,12 @@ object ImageSaver {
                         put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Frottage")
                         put(MediaStore.Images.Media.IS_PENDING, 1)
                     } else {
+                        @Suppress("DEPRECATION")
                         val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                         val frottageDir = java.io.File(picturesDir, "Frottage")
-                        if (!frottageDir.exists()) {
-                            frottageDir.mkdirs()
+                        if (!frottageDir.exists() && !frottageDir.mkdirs()) {
+                            Log.w(TAG, "Frottage alert: Could not create Frottage directory at ${frottageDir.absolutePath}")
+                            // Fallback or throw, depending on desired strictness. Here we let MediaStore try.
                         }
                         val imageFile = java.io.File(frottageDir, displayName)
                         put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
@@ -83,57 +71,57 @@ object ImageSaver {
                 }
 
             val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            val imageInsertUri =
+                resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: throw Exception("MediaStore URI was null after insert, frottage fail!")
 
-            uri?.let { imageUri ->
-                withContext(Dispatchers.IO) {
-                    var inputStream: java.io.InputStream? = null
-                    var outputStream: OutputStream? = null
-                    try {
-                        val url = URL(imageUrl)
-                        val request = Request.Builder().url(url).build()
+            withContext(Dispatchers.IO) {
+                val url = URL(imageUrl)
+                val request = Request.Builder().url(url).build()
 
-                        client.newCall(request).execute().use { response ->
-                            if (response.isSuccessful) {
-                                inputStream = response.body?.byteStream()
-                                if (inputStream != null) {
-                                    outputStream = resolver.openOutputStream(imageUri)
-                                    if (outputStream != null) {
-                                        inputStream.copyTo(outputStream)
-                                        Log.i(TAG, "Groovy! Image bytes directly copied to MediaStore: $imageUri")
-                                    } else {
-                                        throw Exception("Failed to get OutputStream from ContentResolver.")
-                                    }
-                                } else {
-                                    throw Exception("Response body was null for image download from $imageUrl")
-                                }
-                            } else {
-                                throw Exception(
-                                    "HTTP error ${response.code} fetching image from $imageUrl. Response: ${response.body?.string()}",
-                                )
+                ApiClient.okHttpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        val errorBody =
+                            try {
+                                response.body?.string()
+                            } catch (e: Exception) {
+                                "Could not read error body."
                             }
-                        }
-                    } finally {
-                        inputStream?.close()
-                        outputStream?.close()
+                        throw Exception(
+                            "HTTP error ${response.code} fetching image from $imageUrl. Response: $errorBody. What a frottage moment!",
+                        )
                     }
-                }
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    contentValues.clear()
-                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                    resolver.update(imageUri, contentValues, null, null)
-                }
-                success = true
-                message = "Image saved to Pictures/Frottage! Groovy frottage!"
-                Log.i(TAG, "Image save process complete for URI: $imageUri. Total frottage!")
-            } ?: throw Exception("MediaStore URI was null, frottage fail!")
+                    val responseBody =
+                        response.body
+                            ?: throw Exception("Response body was null for image download from $imageUrl. This is not groovy!")
+
+                    responseBody.byteStream().use { inputStream ->
+                        resolver.openOutputStream(imageInsertUri).use { outputStream ->
+                            if (outputStream == null) {
+                                throw Exception("Failed to get OutputStream from ContentResolver for $imageInsertUri. Sad frottage noises.")
+                            }
+                            inputStream.copyTo(outputStream)
+                            Log.i(TAG, "Groovy! Image bytes directly copied to MediaStore: $imageInsertUri")
+                        } // outputStream auto-closed
+                    } // inputStream auto-closed
+                } // response auto-closed
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(imageInsertUri, contentValues, null, null)
+            }
+            finalSuccess = true
+            finalMessage = "Image saved to Pictures/Frottage! Groovy frottage!"
+            Log.i(TAG, "Image save process complete for URI: $imageInsertUri. Total frottage!")
         } catch (e: Exception) {
-            success = false
-            message = "Frottage fail! Could not save image: ${e.message}"
+            finalSuccess = false
+            finalMessage = "Frottage fail! Could not save image: ${e.message}"
             Log.e(TAG, "Frottage error during save from URL $imageUrl: ${e.message}", e)
         } finally {
-            onSaveAttemptFinalized(success, message)
+            onSaveAttemptFinalized(finalSuccess, finalMessage)
         }
     }
 }

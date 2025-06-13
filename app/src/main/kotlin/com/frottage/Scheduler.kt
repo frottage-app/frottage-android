@@ -13,6 +13,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.time.Duration
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -85,7 +87,7 @@ class WallpaperWorker(
 
                 // Analytics: Track successful scheduled wallpaper set
                 try {
-                    val targetKey = getFrottageTargetKey(applicationContext)
+                    val targetKey = FrottageApiService.getFrottageTargetKey(applicationContext)
                     val imageId =
                         if (SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem) {
                             ImageMetadataService.fetchAndParseImageId(
@@ -97,18 +99,18 @@ class WallpaperWorker(
                             null
                         }
 
-                    val properties =
-                        mutableMapOf<String, Any?>(
-                            "target_name" to targetKey,
-                            "theme" to if (isDarkTheme(applicationContext)) "dark" else "light",
-                            "source" to "schedule",
-                        )
-                    imageId?.let { properties["image_id"] = it }
+                    val jsonProperties =
+                        buildJsonObject {
+                            put("target_name", JsonPrimitive(targetKey))
+                            put("theme", JsonPrimitive(if (FrottageApiService.isDarkTheme(applicationContext)) "dark" else "light"))
+                            put("source", JsonPrimitive("schedule"))
+                            imageId?.let { put("image_id", JsonPrimitive(it)) }
+                        }
 
                     AnalyticsService.trackEvent(
                         context = applicationContext,
                         eventName = "set_wallpaper_schedule",
-                        eventProperties = properties,
+                        properties = jsonProperties,
                     )
                 } catch (analyticsException: Exception) {
                     Log.e(
