@@ -187,10 +187,11 @@ class MainActivityViewModel(
                         _currentlyDisplayedImageId.value?.let { put("image_id", JsonPrimitive(it)) }
                         put("target_name", JsonPrimitive(FrottageApiService.getFrottageTargetKey(context)))
                         put("theme", JsonPrimitive(if (FrottageApiService.isDarkTheme(context)) "dark" else "light"))
+                        put("source", JsonPrimitive("button"))
                     }
                 AnalyticsService.trackEvent(
                     context = context,
-                    eventName = "set_wallpaper_button",
+                    eventName = "set_wallpaper",
                     properties = jsonProperties,
                 )
             } catch (e: Exception) {
@@ -228,6 +229,19 @@ class MainActivityViewModel(
             Log.d("ViewModel", "Rating changed for $imageId to $newRating. Saving and submitting.")
             RatingPersistence.saveRating(context, imageId, newRating)
             RatingService.submitRating(context, newRating, imageId)
+
+            val analyticsProperties =
+                buildJsonObject {
+                    put("image_id", JsonPrimitive(imageId))
+                    put("rating", JsonPrimitive(newRating))
+                    put("target_device", JsonPrimitive(FrottageApiService.getFrottageTargetKey(context)))
+                    put("theme", JsonPrimitive(if (FrottageApiService.isDarkTheme(context)) "dark" else "light"))
+                }
+            AnalyticsService.trackEvent(
+                context = context,
+                eventName = "rate_image",
+                properties = analyticsProperties,
+            )
         }
     }
 

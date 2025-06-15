@@ -28,8 +28,8 @@ object WallpaperSetter {
                 val wallpaperManager = WallpaperManager.getInstance(context)
                 val imageLoader = ImageLoader(context)
 
-                val imageUrl = FrottageApiService.getWallpaperUrl(context, activeTimestampKey)
-                Log.i(TAG, "Common wallpaper URL: $imageUrl, for activeTimestampKey: $activeTimestampKey")
+                val imageUrl = wallpaperSource.imageSetting.url.invoke(context, activeTimestampKey)
+                Log.i(TAG, "Groovy! Wallpaper URL from current source: $imageUrl, for activeTimestampKey: $activeTimestampKey")
 
                 val targetKey = FrottageApiService.getFrottageTargetKey(context)
 

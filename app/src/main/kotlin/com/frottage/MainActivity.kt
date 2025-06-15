@@ -1,7 +1,6 @@
 package com.frottage
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -665,17 +664,19 @@ class MainActivity :
                         logToFile(context, "Schedule enabled. Let the frottage flow!")
                         requestBatteryOptimizationExemption()
 
-                        // Analytics: Track battery optimization status after requesting exemption
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                            val isIgnoring = powerManager.isIgnoringBatteryOptimizations(context.packageName)
-                            val properties = buildJsonObject { put("is_ignoring_battery_optimizations", JsonPrimitive(isIgnoring)) }
-                            AnalyticsService.trackEvent(context, "battery_optimization_status_checked", properties)
-                            Log.d("ScheduleSwitch", "Battery optimization status checked: isIgnoring = $isIgnoring. Groovy event sent!")
-                        }
+                        val properties =
+                            buildJsonObject {
+                                // Build properties for the enable_schedule event
+                                val batteryStatusNullable = BatteryUtils.getBatteryOptimizationExemptionStatusForAnalytics(context)
+                                if (batteryStatusNullable != null) {
+                                    put("battery_optimization_exempt", JsonPrimitive(batteryStatusNullable))
+                                } else {
+                                    put("battery_optimization_exempt", JsonPrimitive("not_applicable_below_M"))
+                                }
+                            }
 
                         scheduleNextUpdate(context)
-                        AnalyticsService.trackEvent(context, "enable_schedule")
+                        AnalyticsService.trackEvent(context, "enable_schedule", properties)
                     } else {
                         logToFile(context, "Schedule disabled. Frottage paused for now.")
                         cancelUpdateSchedule(context)

@@ -34,7 +34,7 @@ fun FullscreenImageScreen(
         if (timestampKey != null) {
             Log.d("FullscreenImageScreen", "[DEBUG] Received timestampKey: $timestampKey")
             val wallpaperSource = SettingsManager.currentWallpaperSource
-            val imageUrl = FrottageApiService.getWallpaperUrl(context, timestampKey)
+            val imageUrl = wallpaperSource.imageSetting.url.invoke(context, timestampKey)
             Log.d("FullscreenImageScreen", "[DEBUG] Derived imageUrl: $imageUrl for timestampKey: $timestampKey")
             val targetKey = FrottageApiService.getFrottageTargetKey(context)
             imageRequestForFullscreen =

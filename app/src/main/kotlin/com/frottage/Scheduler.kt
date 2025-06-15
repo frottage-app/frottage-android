@@ -105,22 +105,29 @@ class WallpaperWorker(
                             put("theme", JsonPrimitive(if (FrottageApiService.isDarkTheme(applicationContext)) "dark" else "light"))
                             put("source", JsonPrimitive("schedule"))
                             imageId?.let { put("image_id", JsonPrimitive(it)) }
+                            // Add battery optimization status
+                            val batteryStatusNullable = BatteryUtils.getBatteryOptimizationExemptionStatusForAnalytics(applicationContext)
+                            if (batteryStatusNullable != null) {
+                                put("battery_optimization_exempt", JsonPrimitive(batteryStatusNullable))
+                            } else {
+                                put("battery_optimization_exempt", JsonPrimitive("not_applicable_below_M"))
+                            }
                         }
 
                     AnalyticsService.trackEvent(
                         context = applicationContext,
-                        eventName = "set_wallpaper_schedule",
+                        eventName = "set_wallpaper",
                         properties = jsonProperties,
                     )
                 } catch (analyticsException: Exception) {
                     Log.e(
                         "WallpaperWorker",
-                        "Frottage hiccup: Failed to send 'set_wallpaper_schedule' analytics event: ${analyticsException.message}",
+                        "Frottage hiccup: Failed to send 'set_wallpaper' analytics event: ${analyticsException.message}",
                         analyticsException,
                     )
                     logToFile(
                         applicationContext,
-                        "Worker: Failed to send analytics event 'set_wallpaper_schedule': ${analyticsException.message}",
+                        "Worker: Failed to send analytics event 'set_wallpaper': ${analyticsException.message}",
                     )
                 }
 

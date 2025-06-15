@@ -6,6 +6,7 @@ data class WallpaperSource(
     val schedule: Schedule,
     val imageSetting: ScreenSetting,
     val supportsFrottageRatingSystem: Boolean,
+    val name: String,
 )
 
 data class ScreenSetting(
@@ -22,6 +23,7 @@ val frottageWallpaperSource =
                 },
             ),
         supportsFrottageRatingSystem = true,
+        name = "frottage",
     )
 
 val unsplashWallpaperSource =
@@ -34,4 +36,5 @@ val unsplashWallpaperSource =
                 },
             ),
         supportsFrottageRatingSystem = false,
+        name = "unsplash",
     )

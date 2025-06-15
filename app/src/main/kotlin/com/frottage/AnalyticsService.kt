@@ -26,6 +26,8 @@ object AnalyticsService {
         eventName: String,
         properties: JsonObject? = null,
     ) {
+        Log.i(TAG, "event: '$eventName', Raw Properties: $properties")
+
         CoroutineScope(Dispatchers.IO).launch {
             val deviceId: String
             val appVersion: String
@@ -46,11 +48,6 @@ object AnalyticsService {
                         osVersion = osVersion,
                         properties = properties,
                     )
-
-                Log.d(
-                    TAG,
-                    "Tracking analytics event: '$eventName'. Payload: $analyticsData. This is some groovy tracking!",
-                )
             } catch (e: Exception) {
                 Log.e(
                     TAG,
