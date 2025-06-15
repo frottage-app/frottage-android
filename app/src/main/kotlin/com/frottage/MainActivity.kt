@@ -397,7 +397,7 @@ class MainActivity :
                     model = imageRequest,
                     contentDescription = "Current Lock Screen Wallpaper",
                     modifier =
-                        Modifier
+                        modifier
                             .clip(shape = RoundedCornerShape(16.dp))
                             .clickable(onClick = {
                                 if (timestampKeyForFullscreen != null) {
