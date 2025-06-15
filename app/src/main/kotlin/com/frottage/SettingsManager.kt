@@ -11,6 +11,7 @@ object SettingsManager {
     private const val KEY_HOME_SCREEN_BLUR = "home_screen_blur"
     private const val KEY_HOME_SCREEN_ENABLE = "home_screen_enable"
     private const val KEY_LOCK_SCREEN_ENABLE = "lock_screen_enable"
+    private const val KEY_FIRST_LAUNCH_EVENT_SENT = "first_launch_event_sent"
 
     fun setScheduleIsEnabled(
         context: Context,
@@ -67,4 +68,18 @@ object SettingsManager {
         context
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_LOCK_SCREEN_ENABLE, true)
+
+    fun setFirstLaunchEventSent(
+        context: Context,
+        sent: Boolean,
+    ) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+            putBoolean(KEY_FIRST_LAUNCH_EVENT_SENT, sent)
+        }
+    }
+
+    fun getFirstLaunchEventSent(context: Context): Boolean =
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_FIRST_LAUNCH_EVENT_SENT, false)
 }

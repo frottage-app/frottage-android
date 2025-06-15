@@ -1,6 +1,7 @@
 package com.frottage
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
@@ -72,6 +73,8 @@ import com.frottage.ui.composables.NextUpdateTime
 import com.frottage.ui.composables.StarRatingBar
 import com.frottage.ui.screens.FullscreenImageScreen
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -85,6 +88,13 @@ class MainActivity :
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Analytics: Track app_launched_first_time
+        if (!SettingsManager.getFirstLaunchEventSent(applicationContext)) {
+            AnalyticsService.trackEvent(applicationContext, "app_launched_first_time")
+            SettingsManager.setFirstLaunchEventSent(applicationContext, true)
+            Log.i("MainActivity", "Groovy! First launch event sent and flag set.")
+        }
 
         // Determine and set screen orientation based on device type
         if (FrottageApiService.isTablet(applicationContext)) {
@@ -387,10 +397,11 @@ class MainActivity :
                     model = imageRequest,
                     contentDescription = "Current Lock Screen Wallpaper",
                     modifier =
-                        modifier
+                        Modifier
                             .clip(shape = RoundedCornerShape(16.dp))
                             .clickable(onClick = {
                                 if (timestampKeyForFullscreen != null) {
+                                    AnalyticsService.trackEvent(navController.context, "fullscreen_image_opened")
                                     navController.navigate("fullscreen/$timestampKeyForFullscreen")
                                 } else {
                                     Log.w("Preview", "timestampKeyForFullscreen is null, cannot navigate to fullscreen.")
@@ -504,6 +515,7 @@ class MainActivity :
         super.onResume()
         Log.d("MainActivity", "onResume called, forcing ViewModel refresh for live preview.")
         viewModel.forceUIRefresh()
+        AnalyticsService.trackEvent(applicationContext, "app_resumed")
     }
 
     override val workManagerConfiguration: Configuration
@@ -553,6 +565,7 @@ class MainActivity :
 
         IconButton(
             onClick = {
+                AnalyticsService.trackEvent(context, "save_wallpaper_clicked")
                 isLoading = true
                 Log.d("SaveWallpaper", "Save button clicked. isLoading set to true.")
                 coroutineScope.launch {
@@ -651,6 +664,16 @@ class MainActivity :
                     if (enabled) {
                         logToFile(context, "Schedule enabled. Let the frottage flow!")
                         requestBatteryOptimizationExemption()
+
+                        // Analytics: Track battery optimization status after requesting exemption
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                            val isIgnoring = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+                            val properties = buildJsonObject { put("is_ignoring_battery_optimizations", JsonPrimitive(isIgnoring)) }
+                            AnalyticsService.trackEvent(context, "battery_optimization_status_checked", properties)
+                            Log.d("ScheduleSwitch", "Battery optimization status checked: isIgnoring = $isIgnoring. Groovy event sent!")
+                        }
+
                         scheduleNextUpdate(context)
                         AnalyticsService.trackEvent(context, "enable_schedule")
                     } else {
