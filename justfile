@@ -70,3 +70,6 @@ deploy:
   echo "$PLAY_SERVICE_ACCOUNT_JSON" > keys/play-service-account.json
   fastlane playstore
   rm -rf keys
+
+logcat:
+  scripts/logcat com.frottage
