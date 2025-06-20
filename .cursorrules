@@ -1,6 +1,7 @@
 - after every code change, compile, test and lint the project using the command `just check`
-- run `just fix` to fix linter errors automatically
+- run `just fix` to fix linter errors automatically. Since just fix changes files on disk, you have to re-read the changed files because your memory is outdated.
 - organize the functions in a file in a top-down design, so that the reader sees high-level code at the top and low-level code at the bottom
 
 # Frottage
 - log and error messages produced by the code should be informal, funny, cool and use Words like "groovy" and "frottage" often.
+- be overly enthusiastic about the project
