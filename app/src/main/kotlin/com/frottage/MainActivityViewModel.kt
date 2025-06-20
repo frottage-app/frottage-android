@@ -6,8 +6,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.request.ImageRequest
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,9 +13,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class MainActivityViewModel(
-        application: Application,
+    application: Application,
 ) : AndroidViewModel(application) {
     private val _currentTimestampKey = MutableStateFlow<String?>(null)
     val currentTimestampKey: StateFlow<String?> = _currentTimestampKey.asStateFlow()
@@ -25,7 +25,7 @@ class MainActivityViewModel(
     // Holds the combined image ID and pure prompt
     private val _currentImageDetails = MutableStateFlow<ImageMetadataService.ImageDetails?>(null)
     val currentImageDetails: StateFlow<ImageMetadataService.ImageDetails?> =
-            _currentImageDetails.asStateFlow()
+        _currentImageDetails.asStateFlow()
 
     private val _displayedRating = MutableStateFlow(0)
     val displayedRating: StateFlow<Int> = _displayedRating.asStateFlow()
@@ -56,8 +56,8 @@ class MainActivityViewModel(
         viewModelScope.launch {
             _updateTrigger.collect { triggerValue ->
                 Log.d(
-                        "ViewModel",
-                        "Effect 0 (ViewModel): triggerUpdate: $triggerValue. Recalculating currentTimestampKey for live preview.",
+                    "ViewModel",
+                    "Effect 0 (ViewModel): triggerUpdate: $triggerValue. Recalculating currentTimestampKey for live preview.",
                 )
                 // Hoisted common calculation
                 val now = ZonedDateTime.now(ZoneId.of("UTC"))
@@ -67,13 +67,13 @@ class MainActivityViewModel(
                 if (_currentTimestampKey.value != timestampKeyFromTime) {
                     _currentTimestampKey.value = timestampKeyFromTime
                     Log.d(
-                            "ViewModel",
-                            "Effect 0 (ViewModel): Live preview. currentTimestampKey updated to $timestampKeyFromTime. Groovy!"
+                        "ViewModel",
+                        "Effect 0 (ViewModel): Live preview. currentTimestampKey updated to $timestampKeyFromTime. Groovy!",
                     )
                 } else {
                     Log.d(
-                            "ViewModel",
-                            "Effect 0 (ViewModel): Live preview. currentTimestampKey is already $timestampKeyFromTime, no change needed. Still groovy.",
+                        "ViewModel",
+                        "Effect 0 (ViewModel): Live preview. currentTimestampKey is already $timestampKeyFromTime, no change needed. Still groovy.",
                     )
                 }
             }
@@ -85,34 +85,34 @@ class MainActivityViewModel(
                 // Collect from the StateFlow
                 val context = getApplication<Application>().applicationContext
                 val targetKeyForRating =
-                        FrottageApiService.getFrottageTargetKey(
-                                context
-                        ) // Assuming getFrottageTargetKey is accessible
+                    FrottageApiService.getFrottageTargetKey(
+                        context,
+                    ) // Assuming getFrottageTargetKey is accessible
                 Log.d(
-                        "ViewModel",
-                        "Effect 1 (ViewModel): currentTimestampKey: $key, targetKey: $targetKeyForRating, supportsFrottageRatingSystem: ${SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem}",
+                    "ViewModel",
+                    "Effect 1 (ViewModel): currentTimestampKey: $key, targetKey: $targetKeyForRating, supportsFrottageRatingSystem: ${SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem}",
                 )
                 if (SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem &&
-                                key != null
+                    key != null
                 ) {
                     val imageDetails =
-                            ImageMetadataService.fetchImageDetails( // Updated call
-                                    context,
-                                    key,
-                                    targetKeyForRating,
-                            )
+                        ImageMetadataService.fetchImageDetails( // Updated call
+                            context,
+                            key,
+                            targetKeyForRating,
+                        )
                     _currentImageDetails.value = imageDetails
                     _isRatingEnabled.value = !imageDetails?.imageId.isNullOrBlank()
                     Log.d(
-                            "ViewModel",
-                            "Effect 1 (ViewModel - Rating System Supported): imageId set to ${imageDetails?.imageId}, purePrompt to '${imageDetails?.purePrompt}', isRatingEnabled: ${_isRatingEnabled.value}",
+                        "ViewModel",
+                        "Effect 1 (ViewModel - Rating System Supported): imageId set to ${imageDetails?.imageId}, purePrompt to '${imageDetails?.purePrompt}', isRatingEnabled: ${_isRatingEnabled.value}",
                     )
                 } else {
                     _currentImageDetails.value = null
                     _isRatingEnabled.value = false
                     Log.d(
-                            "ViewModel",
-                            "Effect 1 (ViewModel - No Rating System Support/No Timestamp): Clearing image details, disabling rating. Supports rating system: ${SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem}",
+                        "ViewModel",
+                        "Effect 1 (ViewModel - No Rating System Support/No Timestamp): Clearing image details, disabling rating. Supports rating system: ${SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem}",
                     )
                 }
             }
@@ -120,24 +120,25 @@ class MainActivityViewModel(
 
         // Effect 2: Load displayedRating based on currentImageDetails
         viewModelScope.launch {
-            currentImageDetails.collect { imageDetails -> // Collect from currentImageDetails
+            currentImageDetails.collect { imageDetails ->
+                // Collect from currentImageDetails
                 val context = getApplication<Application>().applicationContext
                 val imageId = imageDetails?.imageId // Get imageId from ImageDetails
                 Log.d(
-                        "ViewModel",
-                        "Effect 2 (ViewModel): currentImageDetails changed, imageId: $imageId"
+                    "ViewModel",
+                    "Effect 2 (ViewModel): currentImageDetails changed, imageId: $imageId",
                 )
                 if (_isRatingEnabled.value && imageId != null) {
                     _displayedRating.value = RatingPersistence.loadRating(context, imageId)
                     Log.d(
-                            "ViewModel",
-                            "Effect 2 (ViewModel): displayedRating loaded: ${_displayedRating.value} for ID: $imageId"
+                        "ViewModel",
+                        "Effect 2 (ViewModel): displayedRating loaded: ${_displayedRating.value} for ID: $imageId",
                     )
                 } else {
                     _displayedRating.value = 0
                     Log.d(
-                            "ViewModel",
-                            "Effect 2 (ViewModel): Rating disabled or no imageId, displayedRating reset to 0."
+                        "ViewModel",
+                        "Effect 2 (ViewModel): Rating disabled or no imageId, displayedRating reset to 0.",
                     )
                 }
             }
@@ -149,37 +150,37 @@ class MainActivityViewModel(
                 // Collect from the StateFlow
                 val context = getApplication<Application>().applicationContext
                 Log.d(
-                        "ViewModel",
-                        "[DEBUG] Construct ImageRequest Effect (ViewModel): currentTimestampKey changed to: $key"
+                    "ViewModel",
+                    "[DEBUG] Construct ImageRequest Effect (ViewModel): currentTimestampKey changed to: $key",
                 )
                 if (key != null) {
                     val wallpaperSource = SettingsManager.currentWallpaperSource
                     val schedule = wallpaperSource.schedule
                     val imageUrl = wallpaperSource.imageSetting.url.invoke(context, key)
                     Log.d(
-                            "ViewModel",
-                            "[DEBUG] Construct ImageRequest Effect (ViewModel): Derived URL from active source: $imageUrl"
+                        "ViewModel",
+                        "[DEBUG] Construct ImageRequest Effect (ViewModel): Derived URL from active source: $imageUrl",
                     )
                     val targetKey =
-                            FrottageApiService.getFrottageTargetKey(context) // Fetch targetKey
+                        FrottageApiService.getFrottageTargetKey(context) // Fetch targetKey
                     val request =
-                            schedule.imageRequest(
-                                    imageUrl,
-                                    context,
-                                    key,
-                                    targetKey
-                            ) // Pass targetKey
+                        schedule.imageRequest(
+                            imageUrl,
+                            context,
+                            key,
+                            targetKey,
+                        ) // Pass targetKey
                     _imageRequestForPreview.value = request
                     val cacheKeyValue = schedule.constructCacheKey(targetKey, key)
                     Log.d(
-                            "ViewModel",
-                            "[DEBUG] Construct ImageRequest Effect (ViewModel): Created ImageRequest: $request for URL: $imageUrl with diskCacheKey: $cacheKeyValue. POPULATED.",
+                        "ViewModel",
+                        "[DEBUG] Construct ImageRequest Effect (ViewModel): Created ImageRequest: $request for URL: $imageUrl with diskCacheKey: $cacheKeyValue. POPULATED.",
                     )
                 } else {
                     _imageRequestForPreview.value = null
                     Log.d(
-                            "ViewModel",
-                            "[DEBUG] Construct ImageRequest Effect (ViewModel): imageRequestForPreview is NULL (timestampKey also likely null).",
+                        "ViewModel",
+                        "[DEBUG] Construct ImageRequest Effect (ViewModel): imageRequestForPreview is NULL (timestampKey also likely null).",
                     )
                 }
             }
@@ -202,44 +203,45 @@ class MainActivityViewModel(
 
         viewModelScope.launch {
             Log.d(
-                    "ViewModel",
-                    "ManuallySetWallpaper: Coroutine LAUNCHED for key: $timestampKeyToSet. Current _isManualSetInProgress before this launch: ${_isManualSetInProgress.value}",
+                "ViewModel",
+                "ManuallySetWallpaper: Coroutine LAUNCHED for key: $timestampKeyToSet. Current _isManualSetInProgress before this launch: ${_isManualSetInProgress.value}",
             )
             _isManualSetInProgress.value = true
             Log.d(
-                    "ViewModel",
-                    "ManuallySetWallpaper: _isManualSetInProgress set to TRUE for key: $timestampKeyToSet"
+                "ViewModel",
+                "ManuallySetWallpaper: _isManualSetInProgress set to TRUE for key: $timestampKeyToSet",
             )
             _manualSetResultMessage.value = null // Clear previous message
 
             try {
                 WallpaperSetter.setWallpaper(getApplication(), timestampKeyToSet)
                 Log.i(
-                        "ViewModel",
-                        "Manual wallpaper set successful for key: $timestampKeyToSet. Groovy!"
+                    "ViewModel",
+                    "Manual wallpaper set successful for key: $timestampKeyToSet. Groovy!",
                 )
                 // Analytics: Track successful manual wallpaper set
                 val context = getApplication<Application>().applicationContext
-                val jsonProperties = buildJsonObject {
-                    currentImageDetails.value?.imageId?.let {
-                        put("image_id", JsonPrimitive(it))
-                    } // Use from ImageDetails
-                    put(
+                val jsonProperties =
+                    buildJsonObject {
+                        currentImageDetails.value?.imageId?.let {
+                            put("image_id", JsonPrimitive(it))
+                        } // Use from ImageDetails
+                        put(
                             "target_name",
-                            JsonPrimitive(FrottageApiService.getFrottageTargetKey(context))
-                    )
-                    put(
+                            JsonPrimitive(FrottageApiService.getFrottageTargetKey(context)),
+                        )
+                        put(
                             "theme",
                             JsonPrimitive(
-                                    if (FrottageApiService.isDarkTheme(context)) "dark" else "light"
-                            )
-                    )
-                    put("source", JsonPrimitive("button"))
-                }
+                                if (FrottageApiService.isDarkTheme(context)) "dark" else "light",
+                            ),
+                        )
+                        put("source", JsonPrimitive("button"))
+                    }
                 AnalyticsService.trackEvent(
-                        context = context,
-                        eventName = "set_wallpaper",
-                        properties = jsonProperties,
+                    context = context,
+                    eventName = "set_wallpaper",
+                    properties = jsonProperties,
                 )
             } catch (e: Exception) {
                 Log.e("ViewModel", "Manual wallpaper set failed for key: $timestampKeyToSet", e)
@@ -247,8 +249,8 @@ class MainActivityViewModel(
             } finally {
                 _isManualSetInProgress.value = false
                 Log.d(
-                        "ViewModel",
-                        "ManuallySetWallpaper: _isManualSetInProgress set to FALSE in finally block for key: $timestampKeyToSet"
+                    "ViewModel",
+                    "ManuallySetWallpaper: _isManualSetInProgress set to FALSE in finally block for key: $timestampKeyToSet",
                 )
                 Log.d("ViewModel", "Manual wallpaper set finished for key: $timestampKeyToSet")
             }
@@ -260,14 +262,14 @@ class MainActivityViewModel(
     }
 
     fun handleRatingChange(
-            newRating: Int,
-            imageId: String?,
-            context: Context,
+        newRating: Int,
+        imageId: String?,
+        context: Context,
     ) {
         if (imageId.isNullOrBlank()) {
             Log.w(
-                    "ViewModel",
-                    "handleRatingChange called with null or blank imageId. Cannot process rating."
+                "ViewModel",
+                "handleRatingChange called with null or blank imageId. Cannot process rating.",
             )
             return
         }
@@ -283,24 +285,25 @@ class MainActivityViewModel(
             RatingPersistence.saveRating(context, imageId, newRating)
             RatingService.submitRating(context, newRating, imageId)
 
-            val analyticsProperties = buildJsonObject {
-                put("image_id", JsonPrimitive(imageId))
-                put("rating", JsonPrimitive(newRating))
-                put(
+            val analyticsProperties =
+                buildJsonObject {
+                    put("image_id", JsonPrimitive(imageId))
+                    put("rating", JsonPrimitive(newRating))
+                    put(
                         "target_device",
-                        JsonPrimitive(FrottageApiService.getFrottageTargetKey(context))
-                )
-                put(
+                        JsonPrimitive(FrottageApiService.getFrottageTargetKey(context)),
+                    )
+                    put(
                         "theme",
                         JsonPrimitive(
-                                if (FrottageApiService.isDarkTheme(context)) "dark" else "light"
-                        )
-                )
-            }
+                            if (FrottageApiService.isDarkTheme(context)) "dark" else "light",
+                        ),
+                    )
+                }
             AnalyticsService.trackEvent(
-                    context = context,
-                    eventName = "rate_image",
-                    properties = analyticsProperties,
+                context = context,
+                eventName = "rate_image",
+                properties = analyticsProperties,
             )
         }
     }
