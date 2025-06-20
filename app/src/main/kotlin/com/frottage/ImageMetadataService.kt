@@ -9,15 +9,20 @@ import kotlinx.coroutines.withContext
 object ImageMetadataService {
     private const val TAG = "ImageMetadataService"
 
-    suspend fun fetchAndParseImageId(
+    data class ImageDetails(
+        val imageId: String?,
+        val purePrompt: String?,
+    )
+
+    suspend fun fetchImageDetails(
         context: Context,
         timestampKey: String,
         targetKey: String,
-    ): String? {
+    ): ImageDetails? {
         val metadataUrlString = FrottageApiService.getImagesMetadataUrl(timestampKey)
         Log.d(
             TAG,
-            "Fetching image metadata from: $metadataUrlString for target: $targetKey using Retrofit. Groovy!",
+            "Fetching image details from: $metadataUrlString for target: $targetKey using Retrofit. Groovy!",
         )
 
         return withContext(Dispatchers.IO) {
@@ -34,7 +39,7 @@ object ImageMetadataService {
                         Toast
                             .makeText(
                                 context,
-                                "Frottage hiccup: Could not load image details for rating.",
+                                "Frottage hiccup: Could not load image details.",
                                 Toast.LENGTH_LONG,
                             ).show()
                     }
@@ -50,7 +55,7 @@ object ImageMetadataService {
                     Toast
                         .makeText(
                             context,
-                            "Frottage hiccup: Could not load image details for rating.",
+                            "Frottage hiccup: Could not load image details.",
                             Toast.LENGTH_LONG,
                         ).show()
                 }
@@ -67,7 +72,7 @@ object ImageMetadataService {
                     Toast
                         .makeText(
                             context,
-                            "Frottage hiccup: Could not load image details for rating.",
+                            "Frottage hiccup: Could not load image details.",
                             Toast.LENGTH_LONG,
                         ).show()
                 }
@@ -75,11 +80,12 @@ object ImageMetadataService {
             }
 
             val imageId = imageMetadataValue.image_id.toString()
+            val purePrompt = imageMetadataValue.pure_prompt
             Log.i(
                 TAG,
-                "Successfully fetched and parsed image_id: '$imageId' for target: '$targetKey' using Retrofit. Total frottage!",
+                "Successfully fetched and parsed image_id: '$imageId' and pure_prompt: '$purePrompt' for target: '$targetKey' using Retrofit. Total frottage!",
             )
-            return@withContext imageId
+            return@withContext ImageDetails(imageId, purePrompt)
         }
     }
 }

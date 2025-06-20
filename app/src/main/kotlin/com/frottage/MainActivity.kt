@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -55,7 +58,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -71,15 +79,13 @@ import com.frottage.theme.AppTheme
 import com.frottage.ui.composables.NextUpdateTime
 import com.frottage.ui.composables.StarRatingBar
 import com.frottage.ui.screens.FullscreenImageScreen
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import java.time.ZoneId
-import java.time.ZonedDateTime
 
-class MainActivity :
-    ComponentActivity(),
-    Configuration.Provider {
+class MainActivity : ComponentActivity(), Configuration.Provider {
     private val manualSetWallpaperWorkName = "manual_set_wallpaper_work_tag"
 
     private val viewModel: MainActivityViewModel by viewModels()
@@ -107,20 +113,21 @@ class MainActivity :
 
             // Collect states from ViewModel
             val currentTimestampKey by viewModel.currentTimestampKey.collectAsState()
-            val currentlyDisplayedImageId by viewModel.currentlyDisplayedImageId.collectAsState()
+            val currentImageDetails by viewModel.currentImageDetails.collectAsState()
             val displayedRating by viewModel.displayedRating.collectAsState()
             val isRatingEnabled by viewModel.isRatingEnabled.collectAsState()
             val imageRequestForPreview by viewModel.imageRequestForPreview.collectAsState()
 
             AppTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
                 ) {
                     NavHost(navController = navController, startDestination = "wallpaper") {
                         composable("wallpaper") {
                             val context = LocalContext.current
-                            // val workManager = WorkManager.getInstance(context) // No longer needed for manual set
+                            // val workManager = WorkManager.getInstance(context) // No longer
+                            // needed for manual set
 
                             // Observe the WorkInfo for the manual set wallpaper work -- REMOVE THIS
                             // val manualSetWorkInfoList: List<WorkInfo> by workManager
@@ -130,198 +137,283 @@ class MainActivity :
                             // val actualWorkInfo: WorkInfo? = manualSetWorkInfoList.firstOrNull()
 
                             // Observe ViewModel state for manual set operation
-                            val isManualSetInProgress by viewModel.isManualSetInProgress.collectAsState()
-                            val manualSetResultMessage by viewModel.manualSetResultMessage.collectAsState()
+                            val isManualSetInProgress by
+                                    viewModel.isManualSetInProgress.collectAsState()
+                            val manualSetResultMessage by
+                                    viewModel.manualSetResultMessage.collectAsState()
 
                             LaunchedEffect(manualSetResultMessage) {
                                 manualSetResultMessage?.let {
-                                    Toast
-                                        .makeText(
-                                            context,
-                                            it,
-                                            if (it.startsWith("Frottage fail")) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
-                                        ).show()
+                                    Toast.makeText(
+                                                    context,
+                                                    it,
+                                                    if (it.startsWith("Frottage fail")) {
+                                                        Toast.LENGTH_LONG
+                                                    } else {
+                                                        Toast.LENGTH_SHORT
+                                                    },
+                                            )
+                                            .show()
                                     viewModel.clearManualSetResultMessage() // Clear after showing
                                 }
                             }
 
                             Column(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .safeDrawingPadding()
-                                        .padding(
-                                            top = 20.dp,
-                                            bottom = 20.dp,
-                                        ),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier =
+                                            Modifier.fillMaxSize()
+                                                    .safeDrawingPadding()
+                                                    .padding(
+                                                            top = 20.dp,
+                                                            bottom = 20.dp,
+                                                    ),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Preview(
-                                    navController = navController,
-                                    imageRequest = imageRequestForPreview,
-                                    timestampKeyForFullscreen = currentTimestampKey,
-                                    modifier = Modifier.weight(1f),
+                                        navController = navController,
+                                        imageRequest = imageRequestForPreview,
+                                        timestampKeyForFullscreen = currentTimestampKey,
+                                        modifier = Modifier.weight(1f),
                                 )
 
-                                Spacer(modifier = Modifier.height(14.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                        text =
+                                                if (currentImageDetails?.purePrompt.isNullOrBlank()
+                                                ) {
+                                                    ""
+                                                } else {
+                                                    "„${currentImageDetails?.purePrompt}“"
+                                                },
+                                        textAlign = TextAlign.Justify,
+                                        style =
+                                                androidx.compose.ui.text.TextStyle(
+                                                        fontStyle = FontStyle.Italic,
+                                                        fontSize = 20.sp,
+                                                        lineBreak = LineBreak.Paragraph,
+                                                        hyphens = Hyphens.Auto
+                                                ),
+                                        modifier =
+                                                Modifier.padding(
+                                                        start = 20.dp,
+                                                        end = 20.dp,
+                                                ),
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
 
                                 StarRatingBar(
-                                    rating = displayedRating,
-                                    enabled = isRatingEnabled,
-                                    onRatingChange = { newRating ->
-                                        if (isRatingEnabled && currentlyDisplayedImageId != null) {
-                                            viewModel.handleRatingChange(newRating, currentlyDisplayedImageId, context)
-                                        } else {
-                                            Log.w(
-                                                "MainActivity",
-                                                "StarRatingBar onRatingChange: Rating not enabled or imageId is null. isRatingEnabled: $isRatingEnabled, imageId: $currentlyDisplayedImageId",
-                                            )
-                                        }
-                                    },
+                                        rating = displayedRating,
+                                        enabled = isRatingEnabled,
+                                        onRatingChange = { newRating ->
+                                            if (isRatingEnabled &&
+                                                            currentImageDetails?.imageId != null
+                                            ) {
+                                                viewModel.handleRatingChange(
+                                                        newRating,
+                                                        currentImageDetails?.imageId,
+                                                        context,
+                                                )
+                                            } else {
+                                                Log.w(
+                                                        "MainActivity",
+                                                        "StarRatingBar onRatingChange: Rating not enabled or imageId is null. isRatingEnabled: $isRatingEnabled, imageId: ${currentImageDetails?.imageId}",
+                                                )
+                                            }
+                                        },
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
+                                var wallpaperSettingsExpanded by remember { mutableStateOf(true) }
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.width(300.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier.width(300.dp),
                                 ) {
                                     Column(
-                                        modifier =
-                                            Modifier
-                                                .padding(
-                                                    start = 10.dp,
-                                                    top = 18.dp,
-                                                    end = 20.dp,
-                                                    bottom = 8.dp,
-                                                ),
-                                    ) {
-                                        Text(
-                                            text = "Wallpaper Settings",
-                                            style =
-                                                androidx.compose.ui.text.TextStyle(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 20.sp,
-                                                ),
                                             modifier =
-                                                Modifier.padding(
-                                                    start = 12.dp,
-                                                    bottom = 10.dp,
-                                                ),
-                                        )
-                                        LockScreenEnableCheckbox()
-                                        HomeScreenEnableCheckbox()
-                                        HomeScreenBlurCheckbox()
+                                                    Modifier.padding(
+                                                            top = 10.dp,
+                                                            bottom = 10.dp,
+                                                    ),
+                                    ) {
+                                        Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier =
+                                                        Modifier.fillMaxWidth()
+                                                                .clickable(
+                                                                        role = Role.Button,
+                                                                        onClick = {
+                                                                            wallpaperSettingsExpanded =
+                                                                                    !wallpaperSettingsExpanded
+                                                                        },
+                                                                )
+                                                                .padding(
+                                                                        start = 22.dp,
+                                                                        end = 10.dp,
+                                                                        top = 8.dp,
+                                                                        bottom =
+                                                                                if (wallpaperSettingsExpanded
+                                                                                ) {
+                                                                                    0.dp
+                                                                                } else {
+                                                                                    8.dp
+                                                                                },
+                                                                ), // Padding for the clickable Row
+                                        ) {
+                                            Text(
+                                                    text = "Wallpaper Settings",
+                                                    style =
+                                                            androidx.compose.ui.text.TextStyle(
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    fontSize = 20.sp,
+                                                            ),
+                                                    modifier =
+                                                            Modifier.weight(
+                                                                    1f,
+                                                            ), // Make text take available space
+                                            )
+                                            Icon(
+                                                    imageVector =
+                                                            if (wallpaperSettingsExpanded) {
+                                                                Icons.Filled.ExpandLess
+                                                            } else {
+                                                                Icons.Filled.ExpandMore
+                                                            },
+                                                    contentDescription =
+                                                            if (wallpaperSettingsExpanded) {
+                                                                "Collapse"
+                                                            } else {
+                                                                "Expand"
+                                                            },
+                                            )
+                                        }
+                                        AnimatedVisibility(visible = wallpaperSettingsExpanded) {
+                                            Column(
+                                                    modifier =
+                                                            Modifier.padding(
+                                                                    start = 10.dp,
+                                                                    end = 20.dp,
+                                                                    top = 10.dp,
+                                                            ), // Original content padding
+                                                    // (approximated)
+                                                    ) {
+                                                LockScreenEnableCheckbox()
+                                                HomeScreenEnableCheckbox()
+                                                HomeScreenBlurCheckbox()
+                                            }
+                                        }
                                     }
                                 }
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.width(300.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier.width(300.dp),
                                 ) {
                                     Column(
-                                        modifier =
-                                            Modifier.padding(
-                                                start = 10.dp,
-                                                top = 18.dp,
-                                                end = 20.dp,
-                                                bottom = 8.dp,
-                                            ),
+                                            modifier =
+                                                    Modifier.padding(
+                                                            start = 10.dp,
+                                                            top = 18.dp,
+                                                            end = 20.dp,
+                                                            bottom = 8.dp,
+                                                    ),
                                     ) {
                                         Text(
-                                            text = "Schedule",
-                                            style =
-                                                androidx.compose.ui.text.TextStyle(
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 20.sp,
-                                                ),
-                                            modifier =
-                                                Modifier.padding(
-                                                    start = 12.dp,
-                                                    bottom = 10.dp,
-                                                ),
+                                                text = "Schedule",
+                                                style =
+                                                        androidx.compose.ui.text.TextStyle(
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 20.sp,
+                                                        ),
+                                                modifier =
+                                                        Modifier.padding(
+                                                                start = 12.dp,
+                                                                bottom = 10.dp,
+                                                        ),
                                         )
                                         NextUpdateTime(
-                                            navController = navController,
-                                            key = currentTimestampKey,
-                                            modifier = Modifier.padding(start = 12.dp),
+                                                navController = navController,
+                                                key = currentTimestampKey,
+                                                modifier = Modifier.padding(start = 12.dp),
                                         )
                                         ScheduleSwitch(
-                                            modifier = Modifier.padding(start = 12.dp),
+                                                modifier = Modifier.padding(start = 12.dp),
                                         )
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
 
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.width(300.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.width(300.dp),
                                 ) {
                                     SetWallpaperButton(
-                                        currentTimestampKey = currentTimestampKey,
-                                        // workInfo = actualWorkInfo, // No longer pass WorkInfo
-                                        isLoading = isManualSetInProgress, // Pass ViewModel's loading state
-                                        onClick = {
-                                            if (currentTimestampKey != null) {
-                                                viewModel.manuallySetCurrentWallpaper() // Call ViewModel function
-                                            } else {
-                                                Toast
-                                                    .makeText(
-                                                        context,
-                                                        "Cannot set wallpaper: timestamp key is missing",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                Log.w("SetWallpaperButton", "currentTimestampKey is null, cannot trigger manual set")
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            currentTimestampKey = currentTimestampKey,
+                                            // workInfo = actualWorkInfo, // No longer pass WorkInfo
+                                            isLoading = isManualSetInProgress, // Pass ViewModel's
+                                            // loading state
+                                            onClick = {
+                                                if (currentTimestampKey != null) {
+                                                    viewModel.manuallySetCurrentWallpaper() // Call
+                                                    // ViewModel function
+                                                } else {
+                                                    Toast.makeText(
+                                                                    context,
+                                                                    "Cannot set wallpaper: timestamp key is missing",
+                                                                    Toast.LENGTH_SHORT,
+                                                            )
+                                                            .show()
+                                                    Log.w(
+                                                            "SetWallpaperButton",
+                                                            "currentTimestampKey is null, cannot trigger manual set",
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
                                     )
                                     val imageUrlForSave =
-                                        currentTimestampKey?.let { tsKey ->
-                                            SettingsManager.currentWallpaperSource.imageSetting.url
-                                                .invoke(context, tsKey)
-                                        }
+                                            currentTimestampKey?.let { tsKey ->
+                                                SettingsManager.currentWallpaperSource.imageSetting
+                                                        .url.invoke(context, tsKey)
+                                            }
 
                                     if (imageUrlForSave != null) {
                                         SaveWallpaperButton(
-                                            imageUrl = imageUrlForSave,
-                                            imageUniqueId = currentlyDisplayedImageId,
+                                                imageUrl = imageUrlForSave,
+                                                imageUniqueId = currentImageDetails?.imageId,
                                         )
                                     } else {
                                         Log.w(
-                                            "MainActivity",
-                                            "SaveWallpaperButton: imageUrlForSave is null because currentTimestampKey is null.",
+                                                "MainActivity",
+                                                "SaveWallpaperButton: imageUrlForSave is null because currentTimestampKey is null.",
                                         )
                                     }
                                 }
                             }
                         }
                         composable(
-                            route = "fullscreen/{timestampKey}",
-                            arguments =
-                                listOf(
-                                    navArgument("timestampKey") {
-                                        type = NavType.StringType
-                                        nullable = true
-                                    },
-                                ),
+                                route = "fullscreen/{timestampKey}",
+                                arguments =
+                                        listOf(
+                                                navArgument("timestampKey") {
+                                                    type = NavType.StringType
+                                                    nullable = true
+                                                },
+                                        ),
                         ) { backStackEntry ->
                             val timestampKey = backStackEntry.arguments?.getString("timestampKey")
                             FullscreenImageScreen(
-                                timestampKey = timestampKey,
-                                onClick = {
-                                    navController.popBackStack()
-                                },
+                                    timestampKey = timestampKey,
+                                    onClick = { navController.popBackStack() },
                             )
                         }
                         composable("logscreen") {
-                            LogFileView(onClick = {
-                                navController.popBackStack()
-                            })
+                            LogFileView(onClick = { navController.popBackStack() })
                         }
                     }
                 }
@@ -331,47 +423,53 @@ class MainActivity :
 
     @Composable
     private fun SetWallpaperButton(
-        currentTimestampKey: String?, // Keep this to enable/disable button
-        // workInfo: WorkInfo?, // Removed
-        isLoading: Boolean, // Added
-        onClick: () -> Unit, // Added
-        // viewModel: MainActivityViewModel, // No longer needed directly here if onClick calls ViewModel
-        modifier: Modifier = Modifier,
+            currentTimestampKey: String?, // Keep this to enable/disable button
+            // workInfo: WorkInfo?, // Removed
+            isLoading: Boolean, // Added
+            onClick: () -> Unit, // Added
+            // viewModel: MainActivityViewModel, // No longer needed directly here if onClick calls
+            // ViewModel
+            modifier: Modifier = Modifier,
     ) {
-        Log.d("SetWallpaperButton", "Recomposing. isLoading (from ViewModel): $isLoading, currentTimestampKey: $currentTimestampKey")
+        Log.d(
+                "SetWallpaperButton",
+                "Recomposing. isLoading (from ViewModel): $isLoading, currentTimestampKey: $currentTimestampKey",
+        )
 
-        // val context = LocalContext.current // Context for toast is now handled by the LaunchedEffect observing ViewModel
-        // val isLoading = workInfo?.state == WorkInfo.State.RUNNING || workInfo?.state == WorkInfo.State.ENQUEUED // isLoading now passed as parameter
+        // val context = LocalContext.current // Context for toast is now handled by the
+        // LaunchedEffect observing ViewModel
+        // val isLoading = workInfo?.state == WorkInfo.State.RUNNING || workInfo?.state ==
+        // WorkInfo.State.ENQUEUED // isLoading now passed as parameter
 
         // Removed local state and LaunchedEffects for workInfo, showSuccessToast, showFailureToast
 
         Button(
-            modifier = modifier,
-            onClick = onClick, // Use passed onClick
-            enabled = !isLoading && currentTimestampKey != null,
+                modifier = modifier,
+                onClick = onClick, // Use passed onClick
+                enabled = !isLoading && currentTimestampKey != null,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "Setting Wallpaper...",
-                    style =
-                        androidx.compose.ui.text.TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                        ),
+                        "Setting Wallpaper...",
+                        style =
+                                androidx.compose.ui.text.TextStyle(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                ),
                 )
             } else {
                 Text(
-                    "Set Wallpaper",
-                    style =
-                        androidx.compose.ui.text.TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                        ),
+                        "Set Wallpaper",
+                        style =
+                                androidx.compose.ui.text.TextStyle(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                ),
                 )
             }
         }
@@ -379,34 +477,46 @@ class MainActivity :
 
     @Composable
     private fun Preview(
-        navController: NavHostController,
-        imageRequest: ImageRequest?,
-        timestampKeyForFullscreen: String?,
-        modifier: Modifier = Modifier,
+            navController: NavHostController,
+            imageRequest: ImageRequest?,
+            timestampKeyForFullscreen: String?,
+            modifier: Modifier = Modifier,
     ) {
         key(imageRequest) {
             Log.d(
-                "MainActivity",
-                "[DEBUG] Preview Composable: Received imageRequest: $imageRequest, timestampKeyForFullscreen: $timestampKeyForFullscreen",
+                    "MainActivity",
+                    "[DEBUG] Preview Composable: Received imageRequest: $imageRequest, timestampKeyForFullscreen: $timestampKeyForFullscreen",
             )
             @Suppress("SENSELESS_COMPARISON")
             if (imageRequest != null) {
-                Log.d("MainActivity", "[DEBUG] Preview Composable: imageRequest is NOT NULL, attempting to load AsyncImage.")
+                Log.d(
+                        "MainActivity",
+                        "[DEBUG] Preview Composable: imageRequest is NOT NULL, attempting to load AsyncImage.",
+                )
                 AsyncImage(
-                    model = imageRequest,
-                    contentDescription = "Current Lock Screen Wallpaper",
-                    modifier =
-                        modifier
-                            .clip(shape = RoundedCornerShape(16.dp))
-                            .clickable(onClick = {
-                                if (timestampKeyForFullscreen != null) {
-                                    AnalyticsService.trackEvent(navController.context, "fullscreen_image_opened")
-                                    navController.navigate("fullscreen/$timestampKeyForFullscreen")
-                                } else {
-                                    Log.w("Preview", "timestampKeyForFullscreen is null, cannot navigate to fullscreen.")
-                                }
-                            }),
-                    contentScale = ContentScale.Fit,
+                        model = imageRequest,
+                        contentDescription = "Current Lock Screen Wallpaper",
+                        modifier =
+                                modifier.clip(shape = RoundedCornerShape(16.dp))
+                                        .clickable(
+                                                onClick = {
+                                                    if (timestampKeyForFullscreen != null) {
+                                                        AnalyticsService.trackEvent(
+                                                                navController.context,
+                                                                "fullscreen_image_opened",
+                                                        )
+                                                        navController.navigate(
+                                                                "fullscreen/$timestampKeyForFullscreen",
+                                                        )
+                                                    } else {
+                                                        Log.w(
+                                                                "Preview",
+                                                                "timestampKeyForFullscreen is null, cannot navigate to fullscreen.",
+                                                        )
+                                                    }
+                                                },
+                                        ),
+                        contentScale = ContentScale.Fit,
                 )
             } else {
                 Spacer(modifier = modifier.clip(shape = RoundedCornerShape(16.dp)))
@@ -420,23 +530,23 @@ class MainActivity :
         val context = LocalContext.current
         var isBlurEnabled by remember {
             mutableStateOf(
-                SettingsManager.getHomeScreenBlur(context),
+                    SettingsManager.getHomeScreenBlur(context),
             )
         }
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Checkbox(
-                checked = isBlurEnabled,
-                onCheckedChange = { enabled ->
-                    isBlurEnabled = enabled
-                    SettingsManager.setHomeScreenBlur(
-                        context,
-                        isBlurEnabled,
-                    )
-                },
+                    checked = isBlurEnabled,
+                    onCheckedChange = { enabled ->
+                        isBlurEnabled = enabled
+                        SettingsManager.setHomeScreenBlur(
+                                context,
+                                isBlurEnabled,
+                        )
+                    },
             )
             Text("Blur Home Screen")
         }
@@ -447,23 +557,23 @@ class MainActivity :
         val context = LocalContext.current
         var isHomeScreenEnabled by remember {
             mutableStateOf(
-                SettingsManager.getHomeScreenEnable(context),
+                    SettingsManager.getHomeScreenEnable(context),
             )
         }
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Checkbox(
-                checked = isHomeScreenEnabled,
-                onCheckedChange = { isChecked ->
-                    isHomeScreenEnabled = isChecked
-                    SettingsManager.setHomeScreenEnable(
-                        context,
-                        isHomeScreenEnabled,
-                    )
-                },
+                    checked = isHomeScreenEnabled,
+                    onCheckedChange = { isChecked ->
+                        isHomeScreenEnabled = isChecked
+                        SettingsManager.setHomeScreenEnable(
+                                context,
+                                isHomeScreenEnabled,
+                        )
+                    },
             )
             Text("Apply to Home Screen")
         }
@@ -474,23 +584,23 @@ class MainActivity :
         val context = LocalContext.current
         var isLockScreenEnabled by remember {
             mutableStateOf(
-                SettingsManager.getLockScreenEnable(context),
+                    SettingsManager.getLockScreenEnable(context),
             )
         }
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Checkbox(
-                checked = isLockScreenEnabled,
-                onCheckedChange = { isChecked ->
-                    isLockScreenEnabled = isChecked
-                    SettingsManager.setLockScreenEnable(
-                        context,
-                        isLockScreenEnabled,
-                    )
-                },
+                    checked = isLockScreenEnabled,
+                    onCheckedChange = { isChecked ->
+                        isLockScreenEnabled = isChecked
+                        SettingsManager.setLockScreenEnable(
+                                context,
+                                isLockScreenEnabled,
+                        )
+                    },
             )
             Text("Apply to Lock Screen")
         }
@@ -501,10 +611,10 @@ class MainActivity :
             val powerManager = getSystemService(POWER_SERVICE) as PowerManager
             if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                 val intent =
-                    Intent().apply {
-                        action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                        data = Uri.parse("package:$packageName")
-                    }
+                        Intent().apply {
+                            action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                            data = Uri.parse("package:$packageName")
+                        }
                 startActivity(intent)
             }
         }
@@ -527,77 +637,121 @@ class MainActivity :
 
     @Composable
     private fun SaveWallpaperButton(
-        imageUrl: String,
-        imageUniqueId: String?,
+            imageUrl: String,
+            imageUniqueId: String?,
     ) {
         val context = LocalContext.current
         var isLoading by remember { mutableStateOf(false) }
-        val coroutineScope = rememberCoroutineScope() // Added for launching coroutine from permission result
+        val coroutineScope =
+                rememberCoroutineScope() // Added for launching coroutine from permission result
 
         val permissionLauncher =
-            rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestPermission(),
-            ) { isGranted: Boolean ->
-                isLoading = false // Reset loading state after permission dialog closes
-                if (isGranted) {
-                    Log.d("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission granted by user. Groovy! Retrying save.")
-                    coroutineScope.launch {
-                        // Use coroutineScope here
-                        ImageSaver.saveImageRequiringPermissions(
-                            context = context,
-                            imageUrl = imageUrl,
-                            imageUniqueId = imageUniqueId,
-                            onRequestPermission = { /* Should not be called again here if permission was just granted */ },
-                            onSaveAttemptFinalized = { success, message ->
-                                isLoading = false
-                                message?.let {
-                                    Toast.makeText(context, it, if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
-                                }
-                            },
+                rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                ) { isGranted: Boolean ->
+                    isLoading = false // Reset loading state after permission dialog closes
+                    if (isGranted) {
+                        Log.d(
+                                "SaveWallpaper",
+                                "WRITE_EXTERNAL_STORAGE permission granted by user. Groovy! Retrying save.",
                         )
+                        coroutineScope.launch {
+                            // Use coroutineScope here
+                            ImageSaver.saveImageRequiringPermissions(
+                                    context = context,
+                                    imageUrl = imageUrl,
+                                    imageUniqueId = imageUniqueId,
+                                    onRequestPermission = {
+                                        // Should not be called again here if
+                                        // permission was just granted
+                                    },
+                                    onSaveAttemptFinalized = { success, message ->
+                                        isLoading = false
+                                        message?.let {
+                                            Toast.makeText(
+                                                            context,
+                                                            it,
+                                                            if (success) {
+                                                                Toast.LENGTH_SHORT
+                                                            } else {
+                                                                Toast.LENGTH_LONG
+                                                            },
+                                                    )
+                                                    .show()
+                                        }
+                                    },
+                            )
+                        }
+                    } else {
+                        Log.w(
+                                "SaveWallpaper",
+                                "WRITE_EXTERNAL_STORAGE permission denied by user. Not very frottage.",
+                        )
+                        Toast.makeText(
+                                        context,
+                                        "Storage permission is needed to save the image. Frottage halted.",
+                                        Toast.LENGTH_LONG,
+                                )
+                                .show()
                     }
-                } else {
-                    Log.w("SaveWallpaper", "WRITE_EXTERNAL_STORAGE permission denied by user. Not very frottage.")
-                    Toast.makeText(context, "Storage permission is needed to save the image. Frottage halted.", Toast.LENGTH_LONG).show()
                 }
-            }
 
         IconButton(
-            onClick = {
-                AnalyticsService.trackEvent(context, "save_wallpaper_clicked")
-                isLoading = true
-                Log.d("SaveWallpaper", "Save button clicked. isLoading set to true.")
-                coroutineScope.launch {
-                    // Use coroutineScope for the initial call as well
-                    ImageSaver.saveImageRequiringPermissions(
-                        context = context,
-                        imageUrl = imageUrl,
-                        imageUniqueId = imageUniqueId,
-                        onRequestPermission = {
-                            Log.d("SaveWallpaper", "Requesting permission from ImageSaver callback.")
-                            // isLoading is already true, no need to set it again before launching permission dialog
-                            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                            // Note: isLoading will be reset by permissionLauncher's callback or onSaveAttemptFinalized if permission wasn't needed
-                        },
-                        onSaveAttemptFinalized = { success, message ->
-                            isLoading = false
-                            Log.d("SaveWallpaper", "onSaveAttemptFinalized: success=$success, message=$message, isLoading set to false.")
-                            message?.let {
-                                Toast.makeText(context, it, if (success) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
-                            }
-                        },
-                    )
-                }
-            },
-            enabled = !isLoading,
+                onClick = {
+                    AnalyticsService.trackEvent(context, "save_wallpaper_clicked")
+                    isLoading = true
+                    Log.d("SaveWallpaper", "Save button clicked. isLoading set to true.")
+                    coroutineScope.launch {
+                        // Use coroutineScope for the initial call as well
+                        ImageSaver.saveImageRequiringPermissions(
+                                context = context,
+                                imageUrl = imageUrl,
+                                imageUniqueId = imageUniqueId,
+                                onRequestPermission = {
+                                    Log.d(
+                                            "SaveWallpaper",
+                                            "Requesting permission from ImageSaver callback.",
+                                    )
+                                    // isLoading is already true, no need to set it again before
+                                    // launching permission dialog
+                                    permissionLauncher.launch(
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                    )
+                                    // Note: isLoading will be reset by permissionLauncher's
+                                    // callback or onSaveAttemptFinalized if permission wasn't
+                                    // needed
+                                },
+                                onSaveAttemptFinalized = { success, message ->
+                                    isLoading = false
+                                    Log.d(
+                                            "SaveWallpaper",
+                                            "onSaveAttemptFinalized: success=$success, message=$message, isLoading set to false.",
+                                    )
+                                    message?.let {
+                                        Toast.makeText(
+                                                        context,
+                                                        it,
+                                                        if (success) {
+                                                            Toast.LENGTH_SHORT
+                                                        } else {
+                                                            Toast.LENGTH_LONG
+                                                        },
+                                                )
+                                                .show()
+                                    }
+                                },
+                        )
+                    }
+                },
+                enabled = !isLoading,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
                 Icon(
-                    imageVector = Icons.Filled.Download,
-                    contentDescription = "Save Wallpaper",
-                    tint = MaterialTheme.colorScheme.primary,
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = "Save Wallpaper",
+                        tint = MaterialTheme.colorScheme.primary,
                 )
             }
         }
@@ -605,9 +759,9 @@ class MainActivity :
 
     @Composable
     private fun NextUpdateTime(
-        navController: NavHostController,
-        modifier: Modifier = Modifier,
-        key: Any? = null,
+            navController: NavHostController,
+            modifier: Modifier = Modifier,
+            key: Any? = null,
     ) {
         val context = LocalContext.current
         var tapCount by remember { mutableIntStateOf(0) }
@@ -616,24 +770,27 @@ class MainActivity :
         val nextUpdateTime = SettingsManager.currentWallpaperSource.schedule.nextUpdateTime(now)
         val localNextUpdateTime = nextUpdateTime.withZoneSameInstant(ZoneId.systemDefault())
         val timeFormat =
-            java.time.format.DateTimeFormatter
-                .ofPattern("HH:mm", java.util.Locale.getDefault())
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm", java.util.Locale.getDefault())
         val formattedNextUpdateTime = localNextUpdateTime.format(timeFormat)
 
         Text(
-            text = "Next image: $formattedNextUpdateTime",
-            modifier =
-                modifier.clickable {
-                    tapCount++
-                    if (tapCount >= 7) {
-                        try {
-                            navController.navigate("logscreen")
-                        } catch (e: IllegalStateException) {
-                            Log.e("NextUpdateTime", "Navigation failed, make sure 'logscreen' is a valid destination.", e)
-                        }
-                        tapCount = 0
-                    }
-                },
+                text = "Next image: $formattedNextUpdateTime",
+                modifier =
+                        modifier.clickable {
+                            tapCount++
+                            if (tapCount >= 7) {
+                                try {
+                                    navController.navigate("logscreen")
+                                } catch (e: IllegalStateException) {
+                                    Log.e(
+                                            "NextUpdateTime",
+                                            "Navigation failed, make sure 'logscreen' is a valid destination.",
+                                            e,
+                                    )
+                                }
+                                tapCount = 0
+                            }
+                        },
         )
     }
 
@@ -642,47 +799,56 @@ class MainActivity :
         val context = LocalContext.current
         var isScheduleEnabled by remember {
             mutableStateOf(
-                SettingsManager.getScheduleIsEnabled(context),
+                    SettingsManager.getScheduleIsEnabled(context),
             )
         }
 
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = modifier.fillMaxWidth(),
         ) {
             Text("Enable schedule")
             androidx.compose.material3.Switch(
-                checked = isScheduleEnabled,
-                onCheckedChange = { enabled ->
-                    isScheduleEnabled = enabled
-                    SettingsManager.setScheduleIsEnabled(
-                        context,
-                        isScheduleEnabled,
-                    )
-                    if (enabled) {
-                        logToFile(context, "Schedule enabled. Let the frottage flow!")
-                        requestBatteryOptimizationExemption()
+                    checked = isScheduleEnabled,
+                    onCheckedChange = { enabled ->
+                        isScheduleEnabled = enabled
+                        SettingsManager.setScheduleIsEnabled(
+                                context,
+                                isScheduleEnabled,
+                        )
+                        if (enabled) {
+                            logToFile(context, "Schedule enabled. Let the frottage flow!")
+                            requestBatteryOptimizationExemption()
 
-                        val properties =
-                            buildJsonObject {
+                            val properties = buildJsonObject {
                                 // Build properties for the enable_schedule event
-                                val batteryStatusNullable = BatteryUtils.getBatteryOptimizationExemptionStatusForAnalytics(context)
+                                val batteryStatusNullable =
+                                        BatteryUtils
+                                                .getBatteryOptimizationExemptionStatusForAnalytics(
+                                                        context,
+                                                )
                                 if (batteryStatusNullable != null) {
-                                    put("battery_optimization_exempt", JsonPrimitive(batteryStatusNullable))
+                                    put(
+                                            "battery_optimization_exempt",
+                                            JsonPrimitive(batteryStatusNullable),
+                                    )
                                 } else {
-                                    put("battery_optimization_exempt", JsonPrimitive("not_applicable_below_M"))
+                                    put(
+                                            "battery_optimization_exempt",
+                                            JsonPrimitive("not_applicable_below_M"),
+                                    )
                                 }
                             }
 
-                        scheduleNextUpdate(context)
-                        AnalyticsService.trackEvent(context, "enable_schedule", properties)
-                    } else {
-                        logToFile(context, "Schedule disabled. Frottage paused for now.")
-                        cancelUpdateSchedule(context)
-                        AnalyticsService.trackEvent(context, "disable_schedule")
-                    }
-                },
+                            scheduleNextUpdate(context)
+                            AnalyticsService.trackEvent(context, "enable_schedule", properties)
+                        } else {
+                            logToFile(context, "Schedule disabled. Frottage paused for now.")
+                            cancelUpdateSchedule(context)
+                            AnalyticsService.trackEvent(context, "disable_schedule")
+                        }
+                    },
             )
         }
     }
