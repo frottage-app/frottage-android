@@ -33,7 +33,7 @@ import com.frottage.SettingsManager
 
 @Composable
 fun WallpaperSettingsCard(modifier: Modifier = Modifier) {
-    var wallpaperSettingsExpanded by remember { mutableStateOf(true) }
+    var wallpaperSettingsExpanded by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(20.dp),
