@@ -128,17 +128,26 @@ class MainActivityViewModel(
                     "ViewModel",
                     "Effect 2 (ViewModel): currentImageDetails changed, imageId: $imageId",
                 )
-                if (_isRatingEnabled.value && imageId != null) {
-                    _displayedRating.value = RatingPersistence.loadRating(context, imageId)
+
+                // Directly derive the condition here based on current information
+                val supportsRatingSystem = SettingsManager.currentWallpaperSource.supportsFrottageRatingSystem
+                val canLoadRating = !imageId.isNullOrBlank() && supportsRatingSystem
+
+                if (canLoadRating) {
+                    // Update _isRatingEnabled for the UI, now based on the definite decision
+                    _isRatingEnabled.value = true
+                    // imageId is asserted non-null here because canLoadRating check ensures it.
+                    _displayedRating.value = RatingPersistence.loadRating(context, imageId!!)
                     Log.d(
                         "ViewModel",
-                        "Effect 2 (ViewModel): displayedRating loaded: ${_displayedRating.value} for ID: $imageId",
+                        "Effect 2 (ViewModel): Rating enabled. Displayed rating loaded: ${_displayedRating.value} for ID: $imageId. Groovy!",
                     )
                 } else {
+                    _isRatingEnabled.value = false
                     _displayedRating.value = 0
                     Log.d(
                         "ViewModel",
-                        "Effect 2 (ViewModel): Rating disabled or no imageId, displayedRating reset to 0.",
+                        "Effect 2 (ViewModel): Rating cannot be loaded (imageId: $imageId, supportsRatingSystem: $supportsRatingSystem). Displayed rating reset to 0. Not so frottage.",
                     )
                 }
             }
