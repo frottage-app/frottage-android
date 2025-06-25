@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -102,6 +104,8 @@ class MainActivity :
             val isRatingEnabled by viewModel.isRatingEnabled.collectAsState()
             val imageRequestForPreview by viewModel.imageRequestForPreview.collectAsState()
 
+            var showRatingInfoDialog by remember { mutableStateOf(false) }
+
             AppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -166,26 +170,38 @@ class MainActivity :
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                StarRatingBar(
-                                    rating = displayedRating,
-                                    enabled = isRatingEnabled,
-                                    onRatingChange = { newRating ->
-                                        if (isRatingEnabled &&
-                                            currentImageDetails?.imageId != null
-                                        ) {
-                                            viewModel.handleRatingChange(
-                                                newRating,
-                                                currentImageDetails?.imageId,
-                                                context,
-                                            )
-                                        } else {
-                                            Log.w(
-                                                "MainActivity",
-                                                "StarRatingBar onRatingChange: Rating not enabled or imageId is null. isRatingEnabled: $isRatingEnabled, imageId: ${currentImageDetails?.imageId}",
-                                            )
-                                        }
-                                    },
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    StarRatingBar(
+                                        rating = displayedRating,
+                                        enabled = isRatingEnabled,
+                                        onRatingChange = { newRating ->
+                                            if (isRatingEnabled &&
+                                                currentImageDetails?.imageId != null
+                                            ) {
+                                                viewModel.handleRatingChange(
+                                                    newRating,
+                                                    currentImageDetails?.imageId,
+                                                    context,
+                                                )
+                                            } else {
+                                                Log.w(
+                                                    "MainActivity",
+                                                    "StarRatingBar onRatingChange: Rating not enabled or imageId is null. isRatingEnabled: $isRatingEnabled, imageId: ${currentImageDetails?.imageId}",
+                                                )
+                                            }
+                                        },
+                                    )
+                                    IconButton(onClick = {
+                                        AnalyticsService.trackEvent(context, "rating_info_opened")
+                                        showRatingInfoDialog = true
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Info,
+                                            contentDescription = "Rating Information",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -266,6 +282,11 @@ class MainActivity :
                         composable("logscreen") {
                             LogFileView(onClick = { navController.popBackStack() })
                         }
+                    }
+                    if (showRatingInfoDialog) {
+                        RatingInfoPopup(
+                            onDismiss = { showRatingInfoDialog = false },
+                        )
                     }
                 }
             }
@@ -513,4 +534,22 @@ class MainActivity :
             }
         }
     }
+}
+
+@Composable
+fun RatingInfoPopup(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Star Ratings") },
+        text = {
+            Text(
+                "Your ratings help us understand which wallpapers our community enjoys. This helps us pick even better ones in the future. All ratings are anonymous.",
+            )
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Groovy")
+            }
+        },
+    )
 }
