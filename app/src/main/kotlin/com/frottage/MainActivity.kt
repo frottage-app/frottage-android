@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +37,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +53,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -71,6 +78,8 @@ import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import android.content.Intent
+import android.net.Uri
 
 class MainActivity :
     ComponentActivity(),
@@ -109,6 +118,7 @@ class MainActivity :
             val showInAppReviewRequest by viewModel.showInAppReviewRequest.collectAsState()
 
             var showRatingInfoDialog by remember { mutableStateOf(false) }
+            var showProjectInfoDialog by remember { mutableStateOf(false) }
 
             // Handle In-App Review Request
             LaunchedEffect(showInAppReviewRequest) {
@@ -230,7 +240,7 @@ class MainActivity :
                                         showRatingInfoDialog = true
                                     }) {
                                         Icon(
-                                            imageVector = Icons.Filled.Info,
+                                            imageVector = Icons.Outlined.Info,
                                             contentDescription = "Rating Information",
                                             tint = MaterialTheme.colorScheme.primary,
                                         )
@@ -252,6 +262,10 @@ class MainActivity :
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.width(300.dp),
                                 ) {
+                                    ProjectInfoButton {
+                                        AnalyticsService.trackEvent(context, "project_info_opened")
+                                        showProjectInfoDialog = true
+                                    }
                                     SetWallpaperButton(
                                         currentTimestampKey = currentTimestampKey,
                                         // workInfo = actualWorkInfo, // No longer pass WorkInfo
@@ -320,6 +334,11 @@ class MainActivity :
                     if (showRatingInfoDialog) {
                         RatingInfoPopup(
                             onDismiss = { showRatingInfoDialog = false },
+                        )
+                    }
+                    if (showProjectInfoDialog) {
+                        ProjectInfoDialog(
+                            onDismiss = { showProjectInfoDialog = false },
                         )
                     }
                 }
@@ -577,6 +596,87 @@ class MainActivity :
                 )
             }
         }
+    }
+
+    @Composable
+    private fun ProjectInfoButton(onClick: () -> Unit) {
+        IconButton(onClick = onClick) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "Project Information",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+
+    @Composable
+    private fun ProjectInfoDialog(onDismiss: () -> Unit) {
+        val context = LocalContext.current
+        val fullText =
+            "This is an art project by friends, shared with fellow enthusiasts.\n\nIt only does one thing well: give you groovy wallpapers every day.\n\nIf you have any kind words, please leave us a review or send us an email."
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("About") },
+            text = {
+                Column(horizontalAlignment = Alignment.Start) {
+                    Text(
+                        text = fullText,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            AnalyticsService.trackEvent(context, "open_play_store_from_info_dialog")
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.e("ProjectInfoDialog", "Frottage hiccup! Could not open Play Store: ${e.message}", e)
+                                Toast.makeText(context, "Could not open Play Store.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Text("Leave a Review")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            AnalyticsService.trackEvent(context, "open_github_from_info_dialog")
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/frottage-app/frottage-android/issues"))
+                             try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.e("ProjectInfoDialog", "Frottage hiccup! Could not open GitHub: ${e.message}", e)
+                                Toast.makeText(context, "Could not open link.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Text("Report Bug")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            AnalyticsService.trackEvent(context, "open_email_from_info_dialog")
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("mailto:playstore@felx.me"))
+                             try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.e("ProjectInfoDialog", "Frottage hiccup! Could not open email client: ${e.message}", e)
+                                Toast.makeText(context, "Could not open email app.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Text("Send Email")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text("Groovy")
+                }
+            },
+        )
     }
 }
 
