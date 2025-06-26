@@ -333,6 +333,7 @@ class MainActivity :
                     if (showProjectInfoDialog) {
                         ProjectInfoDialog(
                             onDismiss = { showProjectInfoDialog = false },
+                            onLeaveReviewClick = { viewModel.requestInAppReviewFromInfoDialog() },
                         )
                     }
                 }
@@ -604,7 +605,10 @@ class MainActivity :
     }
 
     @Composable
-    private fun ProjectInfoDialog(onDismiss: () -> Unit) {
+    private fun ProjectInfoDialog(
+        onDismiss: () -> Unit,
+        onLeaveReviewClick: () -> Unit,
+    ) {
         val context = LocalContext.current
         val fullText =
             "This is an art project by friends, shared with fellow enthusiasts.\n\nIt only does one thing well: give you groovy wallpapers every day.\n\nIf you have any kind words, please leave us a review or send us an email."
@@ -621,14 +625,8 @@ class MainActivity :
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            AnalyticsService.trackEvent(context, "open_play_store_from_info_dialog")
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Log.e("ProjectInfoDialog", "Frottage hiccup! Could not open Play Store: ${e.message}", e)
-                                Toast.makeText(context, "Could not open Play Store.", Toast.LENGTH_SHORT).show()
-                            }
+                            AnalyticsService.trackEvent(context, "in_app_review_requested_from_info")
+                            onLeaveReviewClick()
                         },
                     ) {
                         Text("Leave a Review")
