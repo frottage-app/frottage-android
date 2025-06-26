@@ -69,6 +69,8 @@ import com.frottage.ui.composables.WallpaperSettingsCard
 import com.frottage.ui.screens.FullscreenImageScreen
 import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 
 class MainActivity :
     ComponentActivity(),
@@ -508,7 +510,17 @@ class MainActivity :
 
         IconButton(
             onClick = {
-                AnalyticsService.trackEvent(context, "save_wallpaper_clicked")
+                val analyticsProperties =
+                    buildJsonObject {
+                        imageUniqueId?.let {
+                            put("image_id", JsonPrimitive(it))
+                        }
+                    }
+                AnalyticsService.trackEvent(
+                    context,
+                    "save_wallpaper_clicked",
+                    analyticsProperties,
+                )
                 isLoading = true
                 Log.d("SaveWallpaper", "Save button clicked. isLoading set to true.")
                 coroutineScope.launch {
