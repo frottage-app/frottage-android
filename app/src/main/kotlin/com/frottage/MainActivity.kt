@@ -67,6 +67,7 @@ import com.frottage.ui.composables.ScheduleSettingsCard
 import com.frottage.ui.composables.StarRatingBar
 import com.frottage.ui.composables.WallpaperSettingsCard
 import com.frottage.ui.screens.FullscreenImageScreen
+import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.launch
 
 class MainActivity :
@@ -103,8 +104,39 @@ class MainActivity :
             val displayedRating by viewModel.displayedRating.collectAsState()
             val isRatingEnabled by viewModel.isRatingEnabled.collectAsState()
             val imageRequestForPreview by viewModel.imageRequestForPreview.collectAsState()
+            val showInAppReviewRequest by viewModel.showInAppReviewRequest.collectAsState()
 
             var showRatingInfoDialog by remember { mutableStateOf(false) }
+
+            // Handle In-App Review Request
+            LaunchedEffect(showInAppReviewRequest) {
+                if (showInAppReviewRequest) {
+                    Log.i("MainActivity", "Groovy! Time to ask for a review.")
+                    val reviewManager = ReviewManagerFactory.create(applicationContext)
+                    val request = reviewManager.requestReviewFlow()
+                    request.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val reviewInfo = task.result
+                            Log.d("MainActivity", "ReviewInfo obtained successfully. Proceeding to launch review flow.")
+                            val flow = reviewManager.launchReviewFlow(this@MainActivity, reviewInfo)
+                            flow.addOnCompleteListener { _ ->
+                                // The review flow has finished. The API does not indicate whether the user
+                                // reviewed or not, or even whether the dialog was shown. Here we just
+                                // know the process is done.
+                                Log.i(
+                                    "MainActivity",
+                                    "In-app review flow finished. User may or may not have reviewed. Total frottage either way!",
+                                )
+                            }
+                        } else {
+                            // There was some problem, continue regardless of the result.
+                            Log.w("MainActivity", "Frottage hiccup: Could not get ReviewInfo: ${task.exception?.message}")
+                        }
+                        // Reset the signal in ViewModel after attempting to show the review
+                        viewModel.inAppReviewRequested()
+                    }
+                }
+            }
 
             AppTheme {
                 Surface(

@@ -50,4 +50,34 @@ object RatingPersistence {
             return 0 // Default to 0 on error
         }
     }
+
+    data class RatingStats(
+        val count: Int,
+        val averageRating: Float,
+    )
+
+    fun getRatingStats(context: Context): RatingStats? {
+        Log.d(TAG, "Calculating rating stats. Let's see the frottage numbers!")
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val allEntries = prefs.all
+
+            val ratings = allEntries.values.mapNotNull { it as? Int }
+            val count = ratings.size
+
+            if (count == 0) {
+                Log.i(TAG, "No ratings found. Fresh frottage canvas for stats!")
+                return null
+            }
+
+            val sumOfRatings = ratings.sum()
+            val averageRating = sumOfRatings.toFloat() / count
+
+            Log.i(TAG, "Groovy! Rating stats calculated: Count = $count, Average = $averageRating. Total frottage score!")
+            return RatingStats(count, averageRating)
+        } catch (e: Exception) {
+            Log.e(TAG, "Frottage fail! Could not calculate rating stats: ${e.message}", e)
+            return null // Return null on error
+        }
+    }
 }

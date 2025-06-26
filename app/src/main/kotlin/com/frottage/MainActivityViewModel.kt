@@ -43,6 +43,9 @@ class MainActivityViewModel(
     private val _manualSetResultMessage = MutableStateFlow<String?>(null)
     val manualSetResultMessage: StateFlow<String?> = _manualSetResultMessage.asStateFlow()
 
+    private val _showInAppReviewRequest = MutableStateFlow(false)
+    val showInAppReviewRequest: StateFlow<Boolean> = _showInAppReviewRequest.asStateFlow()
+
     @Suppress("ktlint:standard:backing-property-naming")
     private val _updateTrigger = MutableStateFlow(0)
 
@@ -270,6 +273,11 @@ class MainActivityViewModel(
         _manualSetResultMessage.value = null
     }
 
+    fun inAppReviewRequested() {
+        _showInAppReviewRequest.value = false
+        Log.d("ViewModel", "In-app review request signal has been reset. Groovy.")
+    }
+
     fun handleRatingChange(
         newRating: Int,
         imageId: String?,
@@ -294,6 +302,7 @@ class MainActivityViewModel(
             RatingPersistence.saveRating(context, imageId, newRating)
             RatingService.submitRating(context, newRating, imageId)
 
+            // Analytics part
             val analyticsProperties =
                 buildJsonObject {
                     put("image_id", JsonPrimitive(imageId))
@@ -314,6 +323,23 @@ class MainActivityViewModel(
                 eventName = "rate_image",
                 properties = analyticsProperties,
             )
+
+            // Check for in-app review condition
+            if (newRating == 5) {
+                val stats = RatingPersistence.getRatingStats(context)
+                if (stats != null && stats.count >= 5 && stats.averageRating >= 4.0f) {
+                    Log.i(
+                        "ViewModel",
+                        "User gave 5 stars and stats are groovy! Requesting in-app review. Count: ${stats.count}, Avg: ${stats.averageRating}",
+                    )
+                    _showInAppReviewRequest.value = true
+                } else {
+                    Log.d(
+                        "ViewModel",
+                        "User gave 5 stars, but stats not met for review. Count: ${stats?.count}, Avg: ${stats?.averageRating}. Still awesome frottage!",
+                    )
+                }
+            }
         }
     }
 

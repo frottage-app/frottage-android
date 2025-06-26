@@ -59,9 +59,11 @@ fun LogFileView(
 ) {
     val context = LocalContext.current
     var logLines by remember { mutableStateOf(listOf<String>()) }
+    var ratingStats by remember { mutableStateOf<RatingPersistence.RatingStats?>(null) }
 
     LaunchedEffect(context) {
         logLines = loadLogFile(context)
+        ratingStats = RatingPersistence.getRatingStats(context)
     }
     Column(
         modifier = modifier,
@@ -70,7 +72,39 @@ fun LogFileView(
         //         .fillMaxSize()
         //         .safeDrawingPadding(),
     ) {
-        Text("Schedule:")
+        Text(
+            "Frottage HQ Diagnostics!",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+
+        ratingStats?.let { stats ->
+            Text(
+                "Overall Image Rating Grooviness:",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+            )
+            Text(
+                "Rated Images: ${stats.count}",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(start = 20.dp),
+            )
+            Text(
+                "Average Frottage Score: %.2f stars".format(stats.averageRating),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
+            )
+        } ?: Text(
+            "No frottage ratings tallied yet! Be the first to rate!",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+        )
+
+        Text(
+            "Schedule Log:",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp),
+        )
         WorkInfoListScreen()
 
         SelectionContainer {
