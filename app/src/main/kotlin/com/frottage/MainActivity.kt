@@ -333,7 +333,6 @@ class MainActivity :
                     if (showProjectInfoDialog) {
                         ProjectInfoDialog(
                             onDismiss = { showProjectInfoDialog = false },
-                            onLeaveReviewClick = { viewModel.requestInAppReviewFromInfoDialog() },
                         )
                     }
                 }
@@ -605,10 +604,7 @@ class MainActivity :
     }
 
     @Composable
-    private fun ProjectInfoDialog(
-        onDismiss: () -> Unit,
-        onLeaveReviewClick: () -> Unit,
-    ) {
+    private fun ProjectInfoDialog(onDismiss: () -> Unit) {
         val context = LocalContext.current
         val fullText =
             "This is an art project by friends, shared with fellow enthusiasts.\n\nIt only does one thing well: give you groovy wallpapers every day.\n\nIf you have any kind words, please leave us a review or send us an email."
@@ -625,8 +621,22 @@ class MainActivity :
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            AnalyticsService.trackEvent(context, "in_app_review_requested_from_info")
-                            onLeaveReviewClick()
+                            AnalyticsService.trackEvent(context, "leave_review_button_clicked")
+                            val packageName = context.packageName
+                            val playStoreIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName"))
+                            val webIntent =
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$packageName"))
+                            try {
+                                context.startActivity(playStoreIntent)
+                            } catch (e: Exception) {
+                                Log.w("ProjectInfoDialog", "Frottage hiccup! Play Store app not found, trying website: ${e.message}")
+                                try {
+                                    context.startActivity(webIntent)
+                                } catch (e2: Exception) {
+                                    Log.e("ProjectInfoDialog", "Frottage disaster! Could not open Play Store link: ${e2.message}", e2)
+                                    Toast.makeText(context, "Could not open Play Store.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         },
                     ) {
                         Text("Leave a Review")

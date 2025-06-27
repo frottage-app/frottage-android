@@ -273,11 +273,6 @@ class MainActivityViewModel(
         _manualSetResultMessage.value = null
     }
 
-    fun requestInAppReviewFromInfoDialog() {
-        Log.d("ViewModel", "In-app review requested from info dialog. Let the frottage reviews commence!")
-        _showInAppReviewRequest.value = true
-    }
-
     fun inAppReviewRequested() {
         _showInAppReviewRequest.value = false
         Log.d("ViewModel", "In-app review request signal has been reset. Groovy.")
