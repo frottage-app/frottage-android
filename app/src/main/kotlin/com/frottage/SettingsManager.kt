@@ -12,6 +12,7 @@ object SettingsManager {
     private const val KEY_HOME_SCREEN_ENABLE = "home_screen_enable"
     private const val KEY_LOCK_SCREEN_ENABLE = "lock_screen_enable"
     private const val KEY_FIRST_LAUNCH_EVENT_SENT = "first_launch_event_sent"
+    private const val KEY_IN_APP_REVIEW_REQUESTED = "in_app_review_requested"
 
     fun setScheduleIsEnabled(
         context: Context,
@@ -82,4 +83,18 @@ object SettingsManager {
         context
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_FIRST_LAUNCH_EVENT_SENT, false)
+
+    fun setInAppReviewRequested(
+        context: Context,
+        requested: Boolean,
+    ) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+            putBoolean(KEY_IN_APP_REVIEW_REQUESTED, requested)
+        }
+    }
+
+    fun getInAppReviewRequested(context: Context): Boolean =
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_IN_APP_REVIEW_REQUESTED, false)
 }

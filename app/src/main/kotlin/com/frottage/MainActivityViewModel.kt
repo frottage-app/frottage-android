@@ -331,6 +331,12 @@ class MainActivityViewModel(
 
             // Check for in-app review condition
             if (newRating == 5) {
+                val reviewAlreadyRequested = SettingsManager.getInAppReviewRequested(context)
+                if (reviewAlreadyRequested) {
+                    Log.d("ViewModel", "User gave 5 stars, but in-app review already requested. No need to ask again. Total frottage!")
+                    return@launch
+                }
+
                 val stats = RatingPersistence.getRatingStats(context)
                 if (stats != null && stats.count >= 5 && stats.averageRating >= 4.0f) {
                     Log.i(
@@ -338,6 +344,7 @@ class MainActivityViewModel(
                         "User gave 5 stars and stats are groovy! Requesting in-app review. Count: ${stats.count}, Avg: ${stats.averageRating}",
                     )
                     _showInAppReviewRequest.value = true
+                    SettingsManager.setInAppReviewRequested(context, true)
                 } else {
                     Log.d(
                         "ViewModel",
